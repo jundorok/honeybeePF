@@ -1,0 +1,17 @@
+[package]
+name = "honeybee-bf-ebpf"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+honeybee-bf-common = { path = "../honeybee-bf-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "honeybee-bf"
+path = "src/main.rs"
