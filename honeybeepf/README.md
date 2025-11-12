@@ -1,4 +1,4 @@
-# honeybee-bf
+# honeybeepf
 
 ## Prerequisites
 
@@ -25,16 +25,16 @@ program.
 Cross compilation should work on both Intel and Apple Silicon Macs.
 
 ```shell
-CC=${ARCH}-linux-musl-gcc cargo build --package honeybee-bf --release \
+CC=${ARCH}-linux-musl-gcc cargo build --package honeybeepf --release \
   --target=${ARCH}-unknown-linux-musl \
   --config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
 ```
-The cross-compiled program `target/${ARCH}-unknown-linux-musl/release/honeybee-bf` can be
+The cross-compiled program `target/${ARCH}-unknown-linux-musl/release/honeybeepf` can be
 copied to a Linux server or VM and run there.
 
 ## License
 
-With the exception of eBPF code, honeybee-bf is distributed under the terms
+With the exception of eBPF code, honeybeepf is distributed under the terms
 of either the [MIT license] or the [Apache License] (version 2.0), at your
 option.
 

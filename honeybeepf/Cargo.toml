@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "honeybee-bf",
-    "honeybee-bf-common",
-    "honeybee-bf-ebpf",
+    "honeybeepf",
+    "honeybeepf-common",
+    "honeybeepf-ebpf",
 ]
-default-members = ["honeybee-bf", "honeybee-bf-common"]
+default-members = ["honeybeepf", "honeybeepf-common"]
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
@@ -30,6 +30,6 @@ log = { version = "0.4.22", default-features = false }
 tokio = { version = "1.40.0", default-features = false }
 which = { version = "6.0.0", default-features = false }
 
-[profile.release.package.honeybee-bf-ebpf]
+[profile.release.package.honeybeepf-ebpf]
 debug = 2
 codegen-units = 1
