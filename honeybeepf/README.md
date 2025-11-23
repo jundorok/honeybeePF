@@ -1,56 +1,121 @@
 # honeybeepf
 
+High-performance eBPF-based tooling built in Rust.
+
 ## Prerequisites
 
-1. stable rust toolchains: `rustup toolchain install stable`
-1. nightly rust toolchains: `rustup toolchain install nightly --component rust-src`
-1. (if cross-compiling) rustup target: `rustup target add ${ARCH}-unknown-linux-musl`
-1. (if cross-compiling) LLVM: (e.g.) `brew install llvm` (on macOS)
-1. (if cross-compiling) C toolchain: (e.g.) [`brew install filosottile/musl-cross/musl-cross`](https://github.com/FiloSottile/homebrew-musl-cross) (on macOS)
-1. bpf-linker: `cargo install bpf-linker` (`--no-default-features` on macOS)
+- Rust toolchains:
+  - Stable: `rustup toolchain install stable`
+  - Nightly (for eBPF builds): `rustup toolchain install nightly --component rust-src`
+- bpf-linker: `cargo install bpf-linker` (use `--no-default-features` on macOS)
+- For Mac (for cross-compiling from macOS):
+  - follow the steps below
 
-## Build & Run
+## Build & Run (macOS via Lima VM)
 
-Use `cargo build`, `cargo check`, etc. as normal. Run your program with:
+Running eBPF programs typically requires a Linux kernel. On macOS, use a lightweight Linux VM via Lima.
 
-```shell
-cargo run --release
+### 1) Create and enter the VM and install packages
+
+```bash
+# Install Lima (macOS)
+brew install lima
+
+# limactl start --name ebpf-dev /tmp/ebpf-dev.yaml
+limactl start --name ebpf-dev --vm-type=vz --mount-writable --cpus=5 --memory=8 --disk=20
+
+# Enter the VM
+lima
+
+echo 'export CARGO_TARGET_DIR=~/cargo-target' >> ~/.bashrc
+source ~/.bashrc
+sudo apt-get update
+sudo apt-get install -y \
+    clang \
+    llvm \
+    pkg-config \
+    build-essential \
+    libelf-dev \
+    linux-tools-common \
+    linux-tools-generic \
+    linux-headers-$(uname -r) \
+    bpftool
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+
+# Install nightly toolchain for eBPF
+rustup toolchain install nightly
+rustup component add rust-src --toolchain nightly
+rustup default nightly
+cargo install bpf-linker
+
+# Verify
+which llvm-objcopy
+which clang
+llvm-objcopy --version
+rustc --version
+cargo --version
 ```
 
-Cargo build scripts are used to automatically build the eBPF correctly and include it in the
-program.
+### 2) Build & run the project
 
-## Cross-compiling on macOS
+```bash
+# Inside VM: navigate to the project (mounted from macOS via virtiofs)
+cd /<your-repo>/honeybeePF/honeybeepf
 
-Cross compilation should work on both Intel and Apple Silicon Macs.
+# Build
+cargo build --release
 
-```shell
-CC=${ARCH}-linux-musl-gcc cargo build --package honeybeepf --release \
-  --target=${ARCH}-unknown-linux-musl \
-  --config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
+# Run (requires elevated privileges for eBPF)
+sudo $(which cargo) run -- --verbose
+
 ```
-The cross-compiled program `target/${ARCH}-unknown-linux-musl/release/honeybeepf` can be
-copied to a Linux server or VM and run there.
+
+Exit the VM with `exit`. Manage the VM from macOS:
+
+```bash
+# Stop VM when done
+limactl stop ebpf-dev
+
+# Restart later
+limactl start ebpf-dev
+
+# Delete 
+limactl stop ebpf-dev --force 2>/dev/null || true                                        
+limactl delete ebpf-dev 2>/dev/null || true
+rm -rf ~/.lima/ebpf-dev
+```
+
+## Build & Run (native Linux)
+
+If you are on Linux with a recent kernel and headers installed:
+
+```bash
+cargo build
+sudo cargo run --release -- --verbose
+```
+
+Cargo build scripts will compile the eBPF artifacts and bundle them into the binary automatically.
+
+## Troubleshooting
+
+- Permission errors on run: use `sudo` or ensure your user has the appropriate capabilities to load eBPF programs.
+- Missing kernel headers: install `linux-headers-$(uname -r)` inside the VM/host.
+- macOS path mounts: verify the project path is mounted in Lima (`limactl list` and instance config).
 
 ## License
 
-With the exception of eBPF code, honeybeepf is distributed under the terms
-of either the [MIT license] or the [Apache License] (version 2.0), at your
-option.
+With the exception of eBPF code, honeybeepf is distributed under either the [MIT license] or the [Apache License] (version 2.0), at your option.
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in this crate by you, as defined in the Apache-2.0 license, shall
-be dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this crate by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
 
-### eBPF
+### eBPF licensing
 
-All eBPF code is distributed under either the terms of the
-[GNU General Public License, Version 2] or the [MIT license], at your
-option.
+All eBPF code is distributed under either the terms of the [GNU General Public License, Version 2] or the [MIT license], at your option.
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in this project by you, as defined in the GPL-2 license, shall be
-dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this project by you, as defined in the GPL-2 license, shall be dual licensed as above, without any additional terms or conditions.
 
 [Apache license]: LICENSE-APACHE
 [MIT license]: LICENSE-MIT
