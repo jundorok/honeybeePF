@@ -4,7 +4,7 @@
 *.tfstate.backup
 terraform.tfvars
 *.tfplan
-
+*.hcl
 # Keys
 *.pem
 *.key
