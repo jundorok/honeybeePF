@@ -8,6 +8,13 @@ spec:
   selector:
     matchLabels:
       {{- include "honeybeepf.selectorLabels" . | nindent 6 }}
+
+  # 배포 전략: 한 번에 다 죽이지 말고 하나씩 업데이트 (안전장치)
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+    
   template:
     metadata:
       labels:
@@ -16,6 +23,11 @@ spec:
       # 호스트의 PID 네임스페이스 등을 공유해야 eBPF가 제대로 프로세스를 볼 수 있음
       hostPID: true 
       hostNetwork: true # 필요시 사용 (네트워크 관측 등)
+
+      # 톨러레이션: 마스터 노드나 문제 있는 노드 등 '모든 곳'에 설치
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
       
       containers:
         - name: {{ .Chart.Name }}
