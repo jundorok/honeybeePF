@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "honeybeepf.fullname" . }}
+  labels:
+    {{- include "honeybeepf.labels" . | nindent 4 }}
+data:
+  # 여기에 values.yaml의 probes 설정을 환경변수로 변환하는 로직이 들어갈 예정
+  # 일단은 OTLP 엔드포인트 설정만 연결해 둠.
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}

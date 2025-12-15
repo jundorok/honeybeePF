@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "honeybeepf.fullname" . }}
+  labels:
+    {{- include "honeybeepf.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "honeybeepf.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "honeybeepf.selectorLabels" . | nindent 8 }}
+    spec:
+      # 호스트의 PID 네임스페이스 등을 공유해야 eBPF가 제대로 프로세스를 볼 수 있음
+      hostPID: true 
+      hostNetwork: true # 필요시 사용 (네트워크 관측 등)
+      
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          
+          # [중요] eBPF 실행을 위한 권한 부여 
+          securityContext:
+            privileged: true 
+            capabilities:
+              add: ["SYS_ADMIN", "BPF"]
+
+          # values.yaml에서 설정한 리소스 제한 적용
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          # ConfigMap에서 환경변수 가져오기 (프로브 설정 등)
+          envFrom:
+            - configMapRef:
+                name: {{ include "honeybeepf.fullname" . }}
+
+          # [중요] eBPF 맵 관리를 위한 볼륨 마운트 [cite: 279]
+          volumeMounts:
+            - mountPath: /sys/fs/bpf
+              name: bpf-fs
+      
+      volumes:
+        - name: bpf-fs
+          hostPath:
+            path: /sys/fs/bpf
+            type: Directory
