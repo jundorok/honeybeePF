@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "honeybeepf.fullname" . }}
+  labels:
+    {{- include "honeybeepf.labels" . | nindent 4 }}
+data:
+  # OLTP 설정
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
+
+  # Probes 설정
+  PROBE_DB_CONNECTION: {{ .Values.probes.db_connection | quote }}
+  PROBE_FILE_IO: {{ .Values.probes.file_io | quote }}
+  PROBE_NETWORK_LATENCY: {{ .Values.probes.network_latency | quote }}

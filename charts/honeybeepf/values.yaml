@@ -1,0 +1,28 @@
+# honeybeepf/values.yaml 
+
+# 1. 관측 프로브 설정
+probes:
+  db_connection: true
+  file_io: false
+  network_latency: false
+
+# 2. 데이터 전송 설정 
+output:
+  otlp:
+    endpoint: "otel-collector.monitoring.svc:4317"
+    protocol: "grpc"
+
+# 3. 배포 설정
+image:
+  repository: "jundorok/honeybeepf"
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# 4. 리소스 설정 
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
