@@ -10,7 +10,7 @@ variable "tenancy_ocid" {
 
 variable "bastion_client_cidr_list" {
   description = "List of CIDRs allowed to connect to Bastion (your IP)"
-  type        = string
+  type        = list(string)
 }
 
 variable "ssh_public_key" {
