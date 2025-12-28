@@ -15,10 +15,6 @@ COPY dist/honeybeepf /usr/local/bin/honeybeepf
 
 # Validate that the binary exists and ensure it has execution permissions
 RUN if [ ! -f /usr/local/bin/honeybeepf ]; then \
-      echo "Error: /usr/local/bin/honeybeepf is missing. Ensure the binary is built and staged in dist/ before building the image." >&2; \
-      exit 1; \
-    fi && \
-    chmod +x /usr/local/bin/honeybeepf
-
+COPY --chmod=755 dist/honeybeepf /usr/local/bin/honeybeepf
 # Set the entry point to start the service
 ENTRYPOINT ["/usr/local/bin/honeybeepf"]
