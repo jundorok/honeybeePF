@@ -1,0 +1,46 @@
+# 1. Service Account Configuration 
+serviceAccount:
+  create: true
+  annotations: {}
+  # If not set, a name is generated using the fullname template
+  name: ""
+
+# 2. Probe Settings (Meeting Notes: Hybrid structure)
+probes:
+  db_connection: true
+  file_io: false
+  network_latency: false
+  interval: 1000 # Action item: Resource management
+
+# 3. Data Output Settings 
+# This block is required by templates/configmap.yaml
+output:
+  otlp:
+    endpoint: "otel-collector.monitoring.svc:4317"
+    protocol: "grpc"
+
+# 4. Deployment Settings
+image:
+  repository: "jundorok/honeybeepf"
+  tag: "latest" # Keep as latest for development
+  pullPolicy: IfNotPresent
+
+# 5. Resource Limits
+resources:
+  limits:
+    cpu: "200m"
+    memory: "256Mi"
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+
+# 6. Security & Scheduling 
+securityContext:
+  privileged: true
+  capabilities:
+    add: ["SYS_ADMIN", "BPF"]
+
+nodeSelector: {}
+tolerations:
+  - effect: NoSchedule
+    operator: Exists

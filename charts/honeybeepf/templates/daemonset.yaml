@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "honeybeepf.fullname" . }}
+  labels:
+    {{- include "honeybeepf.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "honeybeepf.selectorLabels" . | nindent 6 }}
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        {{- include "honeybeepf.selectorLabels" . | nindent 8 }}
+    spec:
+      # Use the dedicated ServiceAccount (Copilot's Feedback)
+      serviceAccountName: {{ include "honeybeepf.serviceAccountName" . }}
+      
+      # Required for eBPF to monitor host-level processes
+      hostPID: true 
+      hostNetwork: true
+
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+      
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          
+          # Security settings for eBPF operations
+          securityContext:
+            privileged: {{ .Values.securityContext.privileged }}
+            capabilities:
+              {{- toYaml .Values.securityContext.capabilities | nindent 14 }}
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ include "honeybeepf.fullname" . }}
+
+          volumeMounts:
+            - mountPath: /sys/fs/bpf
+              name: bpf-fs
+      
+      volumes:
+        - name: bpf-fs
+          hostPath:
+            path: /sys/fs/bpf
+            type: Directory

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "honeybeepf.fullname" . }}
+  labels:
+    {{- include "honeybeepf.labels" . | nindent 4 }}
+data:
+  # OTLP Configuration
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
+
+  # Probe Toggles
+  PROBE_DB_CONNECTION: {{ .Values.probes.db_connection | quote }}
+  PROBE_FILE_IO: {{ .Values.probes.file_io | quote }}
+  PROBE_NETWORK_LATENCY: {{ .Values.probes.network_latency | quote }}
+  
+  # Collection Interval (Action Item: Resource Management)
+  PROBE_INTERVAL: {{ .Values.probes.interval | quote }}
+
+{{- with .Values.probes.customProbes }}
+  CUSTOM_PROBE_CONFIG: {{ toJson . | quote }}
+{{- end }}
