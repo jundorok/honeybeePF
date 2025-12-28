@@ -9,12 +9,10 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Inject the binary built by the host during the CI process
-# The binary is sourced from the staged 'dist/' directory
-COPY dist/honeybeepf /usr/local/bin/honeybeepf
+RUN mkdir -p /sys/fs/bpf
 
 # Validate that the binary exists and ensure it has execution permissions
-RUN if [ ! -f /usr/local/bin/honeybeepf ]; then \
 COPY --chmod=755 dist/honeybeepf /usr/local/bin/honeybeepf
+
 # Set the entry point to start the service
 ENTRYPOINT ["/usr/local/bin/honeybeepf"]
