@@ -1,5 +1,5 @@
 # Use a stable Ubuntu image for the runtime environment
-FROM ubuntu:22.04
+FROM ubuntu:22.04.3
 
 # Install essential runtime libraries for eBPF and networking
 # - libelf1: Required for processing eBPF objects
@@ -13,8 +13,12 @@ RUN apt-get update && apt-get install -y \
 # The binary is sourced from the staged 'dist/' directory
 COPY dist/honeybeepf /usr/local/bin/honeybeepf
 
-# Ensure the binary has execution permissions
-RUN chmod +x /usr/local/bin/honeybeepf
+# Validate that the binary exists and ensure it has execution permissions
+RUN if [ ! -f /usr/local/bin/honeybeepf ]; then \
+      echo "Error: /usr/local/bin/honeybeepf is missing. Ensure the binary is built and staged in dist/ before building the image." >&2; \
+      exit 1; \
+    fi && \
+    chmod +x /usr/local/bin/honeybeepf
 
 # Set the entry point to start the service
 ENTRYPOINT ["/usr/local/bin/honeybeepf"]
