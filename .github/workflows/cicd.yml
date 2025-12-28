@@ -20,6 +20,8 @@ jobs:
       - name: Setup Rust & bpf-linker
         # Ensures the host machine has the required toolchains and eBPF linker
         run: |
+          # Ensure Rust binaries are available in the current step
+          export PATH="$HOME/.cargo/bin:$PATH"
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           rustup toolchain install nightly
           rustup default nightly
@@ -32,8 +34,7 @@ jobs:
       - name: Build eBPF & Userspace
         # Leverages host CPU/RAM for high-performance compilation
         run: |
-          # Enables nightly features required for eBPF compilation
-          export RUSTC_BOOTSTRAP=1
+          # Uses nightly toolchain for eBPF compilation
           
           # 1. Build eBPF target (Requires -Z build-std=core for bpfel target)
           cargo build --release --package honeybeepf-ebpf --target=bpfel-unknown-none -Z build-std=core
