@@ -2,12 +2,10 @@ FROM --platform=$BUILDPLATFORM rustlang/rust:nightly-bookworm AS chef
 WORKDIR /app
 
 RUN cargo install cargo-chef
-
 RUN rustup component add rust-src
+
 RUN apt-get update && apt-get install -y \
     clang llvm libelf-dev pkg-config build-essential \
-    gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
-    gcc-multilib g++-multilib \
     && cargo install bpf-linker --version 0.9.15
 
 FROM chef AS planner
@@ -18,6 +16,13 @@ FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 
 ARG TARGETARCH
+
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        apt-get update && apt-get install -y gcc-aarch64-linux-gnu; \
+    elif [ "$TARGETARCH" = "386" ]; then \
+        apt-get update && apt-get install -y gcc-multilib; \
+    fi
+
 RUN case ${TARGETARCH} in \
     "amd64") rustup target add x86_64-unknown-linux-gnu ;; \
     "arm64") rustup target add aarch64-unknown-linux-gnu ;; \
