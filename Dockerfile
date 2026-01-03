@@ -1,12 +1,15 @@
 FROM --platform=$BUILDPLATFORM rustlang/rust:nightly-bookworm AS chef
 WORKDIR /app/honeybeepf
 
-RUN cargo install cargo-chef
-RUN rustup component add rust-src
+RUN mkdir -p /usr/local/rustup/tmp && chmod 777 /usr/local/rustup/tmp
+ENV TMPDIR=/usr/local/rustup/tmp
 
 RUN apt-get update && apt-get install -y \
     clang llvm libelf-dev pkg-config build-essential \
-    && cargo install bpf-linker --version 0.9.15
+    && cargo install cargo-chef \
+    && cargo install bpf-linker --version 0.9.15 \
+    && rustup component add rust-src \
+    && rm -rf /var/lib/apt/lists/*
 
 FROM chef AS planner
 COPY . /app
@@ -21,7 +24,7 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         apt-get update && apt-get install -y gcc-aarch64-linux-gnu; \
     elif [ "$TARGETARCH" = "386" ]; then \
         apt-get update && apt-get install -y gcc-multilib; \
-    fi
+    fi && rm -rf /var/lib/apt/lists/*
 
 RUN case ${TARGETARCH} in \
     "amd64") rustup target add x86_64-unknown-linux-gnu ;; \
