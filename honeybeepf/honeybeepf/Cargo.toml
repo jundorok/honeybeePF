@@ -21,7 +21,10 @@ tokio = { workspace = true, features = [
     "net",
     "signal",
 ] }
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
+config = "0.14"
+dotenvy = "0.15"
+serde = { version = "1.0", features = ["derive"] }
 bytes = "1"
 
 [build-dependencies]
