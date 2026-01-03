@@ -1,15 +1,17 @@
-FROM --platform=$BUILDPLATFORM rustlang/rust:nightly-bookworm AS chef
-WORKDIR /app/honeybeepf
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS chef
 
-RUN mkdir -p /usr/local/rustup/tmp && chmod 777 /usr/local/rustup/tmp
-ENV TMPDIR=/usr/local/rustup/tmp
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH \
+    RUST_VERSION=nightly
 
 RUN apt-get update && apt-get install -y \
-    clang llvm libelf-dev pkg-config build-essential \
-    && cargo install cargo-chef \
-    && cargo install bpf-linker --version 0.9.15 \
-    && rustup component add rust-src \
+    curl git clang llvm libelf-dev pkg-config build-essential \
+    && curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src \
+    && cargo install cargo-chef bpf-linker --version 0.9.15 \
     && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/honeybeepf
 
 FROM chef AS planner
 COPY . /app
