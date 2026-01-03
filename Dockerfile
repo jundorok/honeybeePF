@@ -34,7 +34,9 @@ RUN case ${TARGETARCH} in \
     "arm64") rustup target add aarch64-unknown-linux-gnu ;; \
     esac
 
-RUN cargo chef cook --release --recipe-path recipe.json --target $(case ${TARGETARCH} in "amd64"*) echo "x86_64-unknown-linux-gnu" ;; "arm64"*) echo "aarch64-unknown-linux-gnu" ;; esac)
+RUN cargo chef cook --release --recipe-path recipe.json \
+    --package honeybeepf \
+    --target $(case ${TARGETARCH} in "amd64"*) echo "x86_64-unknown-linux-gnu" ;; "arm64"*) echo "aarch64-unknown-linux-gnu" ;; esac)
 
 COPY . /app
 
