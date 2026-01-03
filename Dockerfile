@@ -27,17 +27,14 @@ ARG TARGETARCH
 
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
         apt-get update && apt-get install -y gcc-aarch64-linux-gnu; \
-    elif [ "$TARGETARCH" = "386" ]; then \
-        apt-get update && apt-get install -y gcc-multilib; \
     fi && rm -rf /var/lib/apt/lists/*
 
 RUN case ${TARGETARCH} in \
     "amd64") rustup target add x86_64-unknown-linux-gnu ;; \
     "arm64") rustup target add aarch64-unknown-linux-gnu ;; \
-    "386")   rustup target add i686-unknown-linux-gnu ;; \
     esac
 
-RUN cargo chef cook --release --recipe-path recipe.json --target $(case ${TARGETARCH} in "amd64"*) echo "x86_64-unknown-linux-gnu" ;; "arm64"*) echo "aarch64-unknown-linux-gnu" ;; "386"*) echo "i686-unknown-linux-gnu" ;; esac)
+RUN cargo chef cook --release --recipe-path recipe.json --target $(case ${TARGETARCH} in "amd64"*) echo "x86_64-unknown-linux-gnu" ;; "arm64"*) echo "aarch64-unknown-linux-gnu" ;; esac)
 
 COPY . /app
 
@@ -51,9 +48,6 @@ RUN case ${TARGETARCH} in \
         CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
         cargo build --release --package honeybeepf --target aarch64-unknown-linux-gnu && \
         cp target/aarch64-unknown-linux-gnu/release/honeybeepf /app/honeybeepf-bin ;; \
-    "386") \
-        cargo build --release --package honeybeepf --target i686-unknown-linux-gnu && \
-        cp target/i686-unknown-linux-gnu/release/honeybeepf /app/honeybeepf-bin ;; \
     esac
 
 FROM debian:bookworm-slim AS runtime
