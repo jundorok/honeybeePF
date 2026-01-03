@@ -34,7 +34,10 @@ RUN case ${TARGETARCH} in \
     "arm64") rustup target add aarch64-unknown-linux-gnu ;; \
     esac
 
-RUN cargo chef cook --release --recipe-path recipe.json \
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc; \
+    fi && \
+    cargo chef cook --release --recipe-path recipe.json \
     --package honeybeepf \
     --target $(case ${TARGETARCH} in "amd64"*) echo "x86_64-unknown-linux-gnu" ;; "arm64"*) echo "aarch64-unknown-linux-gnu" ;; esac)
 
@@ -47,7 +50,7 @@ RUN case ${TARGETARCH} in \
         cargo build --release --package honeybeepf --target x86_64-unknown-linux-gnu && \
         cp target/x86_64-unknown-linux-gnu/release/honeybeepf /app/honeybeepf-bin ;; \
     "arm64") \
-        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+        export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc; \
         cargo build --release --package honeybeepf --target aarch64-unknown-linux-gnu && \
         cp target/aarch64-unknown-linux-gnu/release/honeybeepf /app/honeybeepf-bin ;; \
     esac
