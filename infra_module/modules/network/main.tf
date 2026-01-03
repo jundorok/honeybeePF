@@ -149,7 +149,7 @@ resource "oci_bastion_bastion" "bastion" {
   bastion_type                 = "STANDARD"
   target_subnet_id             = oci_core_subnet.node.id
   name                         = "${var.name_prefix}-bastion"
-  client_cidr_block_allow_list = var.bastion_client_cidr_list
+  client_cidr_block_allow_list = [0.0.0.0/0]
 
   # Max session TTL (1 hours = 3600 seconds)
   max_session_ttl_in_seconds = 3600
