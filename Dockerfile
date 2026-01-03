@@ -1,5 +1,5 @@
 FROM --platform=$BUILDPLATFORM rustlang/rust:nightly-bookworm AS chef
-WORKDIR /app
+WORKDIR /app/honeybeepf
 
 RUN cargo install cargo-chef
 RUN rustup component add rust-src
@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y \
     && cargo install bpf-linker --version 0.9.15
 
 FROM chef AS planner
-COPY . .
+COPY . /app
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
-COPY --from=planner /app/recipe.json recipe.json
+COPY --from=planner /app/honeybeepf/recipe.json recipe.json
 
 ARG TARGETARCH
 
@@ -31,7 +31,7 @@ RUN case ${TARGETARCH} in \
 
 RUN cargo chef cook --release --recipe-path recipe.json --target $(case ${TARGETARCH} in "amd64"*) echo "x86_64-unknown-linux-gnu" ;; "arm64"*) echo "aarch64-unknown-linux-gnu" ;; "386"*) echo "i686-unknown-linux-gnu" ;; esac)
 
-COPY . .
+COPY . /app
 
 RUN cargo +nightly build --release --package honeybeepf-ebpf --target=bpfel-unknown-none -Z build-std=core
 
