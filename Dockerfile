@@ -1,5 +1,7 @@
-FROM --platform=$BUILDPLATFORM lukemathwalker/cargo-chef:latest-rust-nightly AS chef
+FROM --platform=$BUILDPLATFORM rustlang/rust:nightly-bookworm AS chef
 WORKDIR /app
+
+RUN cargo install cargo-chef
 
 RUN rustup component add rust-src
 RUN apt-get update && apt-get install -y \
