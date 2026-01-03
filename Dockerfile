@@ -7,9 +7,12 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 
 RUN apt-get update && apt-get install -y \
     curl git clang llvm libelf-dev pkg-config build-essential \
+    libclang-dev llvm-dev zlib1g-dev \
     && curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain ${RUST_VERSION} --component rust-src \
-    && cargo install cargo-chef bpf-linker --version 0.9.15 \
     && rm -rf /var/lib/apt/lists/*
+
+RUN cargo install cargo-chef
+RUN cargo install bpf-linker --version 0.9.15
 
 WORKDIR /app/honeybeepf
 
