@@ -3,14 +3,20 @@
 
 use aya_ebpf::{
     macros::{map, tracepoint},
-    maps::PerfEventArray,
+    maps::RingBuf,
     programs::TracePointContext,
-    helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns, bpf_get_current_cgroup_id},
+    helpers::{
+        bpf_get_current_pid_tgid,
+        bpf_ktime_get_ns,
+        bpf_get_current_cgroup_id,
+        bpf_probe_read_user,
+    },
 };
 use aya_log_ebpf::info;
 use honeybeepf_common::ConnectionEvent;
 
 const AF_INET: u16 = 2;
+const MAX_EVENT_SIZE: u32 = 1024 * 1024;
 
 #[repr(C)]
 struct SockaddrIn {
@@ -21,7 +27,7 @@ struct SockaddrIn {
 }
 
 #[map]
-static EVENTS: PerfEventArray<ConnectionEvent> = PerfEventArray::new(0);
+static EVENTS: RingBuf = RingBuf::with_byte_size(MAX_EVENT_SIZE, 0);
 
 #[tracepoint]
 pub fn honeybeepf(ctx: TracePointContext) -> u32 {
@@ -45,38 +51,50 @@ fn try_connect_trace(ctx: TracePointContext) -> Result<(), u32> {
     }
 
     let sa_family: u16 = unsafe {
-        aya_ebpf::helpers::bpf_probe_read_user(sockaddr_ptr as *const u16)
+        bpf_probe_read_user(sockaddr_ptr as *const u16)
             .map_err(|_| 1u32)?
     };
 
-    let mut event = ConnectionEvent {
-        pid,
-        cgroup_id,
-        timestamp,
-        dest_addr: 0,
-        dest_port: 0,
-        address_family: sa_family,
-    };
+    // Attempt to reserve a slot in the ring buffer
+    if let Some(mut slot) = EVENTS.reserve::<ConnectionEvent>(0) {
+        let event = unsafe { slot.as_mut_ptr() };
+        
+        // Initialize common event fields safely using the reserved slot
+        unsafe {
+            (*event).pid = pid;
+            (*event).cgroup_id = cgroup_id;
+            (*event).timestamp = timestamp;
+            (*event).address_family = sa_family;
+            (*event).dest_addr = 0;
+            (*event).dest_port = 0;
+        }
 
-    if sa_family == AF_INET {
-        let sockaddr: SockaddrIn = unsafe {
-            aya_ebpf::helpers::bpf_probe_read_user(sockaddr_ptr as *const SockaddrIn)
-                .map_err(|_| 1u32)?
-        };
+        if sa_family == AF_INET {
+            // Read IPv4 specific data
+            // Use a temporary variable to avoid returning early and leaking the slot
+            let res = unsafe { 
+                bpf_probe_read_user(sockaddr_ptr as *const SockaddrIn) 
+            };
 
-        event.dest_port = sockaddr.sin_port;
-        event.dest_addr = sockaddr.sin_addr;
+            match res {
+                Ok(sockaddr) => {
+                    unsafe {
+                        (*event).dest_port = sockaddr.sin_port;
+                        (*event).dest_addr = sockaddr.sin_addr;
+                    }
+                }
+                Err(_) => {
+                    // If reading fails, we must still handle the slot. 
+                    // Discarding is safer than submitting garbage data.
+                    slot.discard(0);
+                    return Err(1);
+                }
+            }
+        }
 
-        info!(
-            &ctx,
-            "Connection from PID {}: dest={}:{}", 
-            pid,
-            u32::from_be(sockaddr.sin_addr),
-            u16::from_be(sockaddr.sin_port)
-        );
+        // Successfully filled the event, now submit it to userspace
+        slot.submit(0);
     }
-
-    EVENTS.output(&ctx, &event, 0);
 
     Ok(())
 }

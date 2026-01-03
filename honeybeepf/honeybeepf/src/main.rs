@@ -1,14 +1,15 @@
 use anyhow::{Context, Result};
-use aya::maps::perf::PerfEventArray;
+use aya::maps::RingBuf;
 use aya::programs::TracePoint;
-use aya::util::online_cpus;
-use aya::{Bpf, include_bytes_aligned};
-use bytes::BytesMut;
+use aya::{include_bytes_aligned, Bpf};
 use clap::Parser;
 use log::{info, warn};
 use std::net::Ipv4Addr;
+use std::time::Duration;
 use tokio::signal;
 use honeybeepf_common::ConnectionEvent;
+
+const POLL_INTERVAL_MS: u64 = 10;
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -64,71 +65,51 @@ async fn main() -> Result<()> {
 
     info!("Tracepoint attached to syscalls:sys_enter_connect");
 
-    
-    // 1. `bpf.take_map("EVENTS")` - gets the map by name from eBPF program
-    // 2. `AsyncPerfEventArray::try_from()` - converts to async-compatible reader
-    // 3. This is the userspace side of the kernel→userspace event channel
-    // ┌─────────────┐
-    // │ eBPF (CPU 0)│ → PerfEventArray buffer (CPU 0) ┐
-    // ├─────────────┤                                  │
-    // │ eBPF (CPU 1)│ → PerfEventArray buffer (CPU 1)  ├→ Userspace
-    // ├─────────────┤                                  │
-    // │ eBPF (CPU 2)│ → PerfEventArray buffer (CPU 2) ┘
-    // └─────────────┘
-    let mut perf_array = PerfEventArray::try_from(
+
+    // Initialize the RingBuf map. 
+    // Note: We use take_map instead of map_mut because RingBuf in aya 
+    // is often used as a stateful iterator.
+    let mut ring_buf = RingBuf::try_from(
         bpf.take_map("EVENTS")
             .context("Failed to get EVENTS map")?
     )?;
 
-    // Spawn tasks to read events from each CPU since 
-    // eBPF code runs on whichever CPU the process is scheduled on
-    // Each CPU writes to its own buffer (lockless, fast)
-    // We need one reader task per CPU
-    // Get online CPUs
-    let cpus = online_cpus()?;
-    for cpu_id in cpus {
-        // Open perf buffer for this CPU
-        let mut buf = perf_array.open(cpu_id, None)?;
+    // RingBuf handles events from all CPUs in a single shared buffer.
+    // No need to loop through online_cpus().
+    tokio::task::spawn_blocking(move || {
+        info!("Started RingBuf event listener.");
+        loop {
+            let mut has_work = false;
+            // next() will return the next available event item.
+            while let Some(item) = ring_buf.next() {
+                has_work = true;
 
-        tokio::task::spawn_blocking(move || {
-            let mut buffers = (0..10)
-                .map(|_| BytesMut::with_capacity(std::mem::size_of::<ConnectionEvent>()))
-                .collect::<Vec<_>>();
+                // Explicitly cast the item to get the raw pointer
+                let ptr = item.as_ptr() as *const ConnectionEvent;
+                
+                // Safety: read_unaligned is used to handle potentially unaligned data from kernel
+                let event = unsafe { ptr.read_unaligned() };
 
-            loop {
-                let events = buf.read_events(&mut buffers);
-                match events {
-                    Ok(events) => {
-                        for i in 0..events.read {
-                            let buf = &buffers[i];
-                            let ptr = buf.as_ptr() as *const ConnectionEvent;
-                            let event = unsafe { ptr.read_unaligned() };
+                // Convert network byte order to host byte order
+                let dest_ip = Ipv4Addr::from(u32::from_be(event.dest_addr));
+                let dest_port = u16::from_be(event.dest_port);
 
-                            // Convert network byte order to host byte order
-                            let dest_ip = Ipv4Addr::from(u32::from_be(event.dest_addr));
-                            let dest_port = u16::from_be(event.dest_port);
-
-                            println!(
-                                "[CPU {}] PID {} connecting to {}:{} (cgroup_id={}, ts={})",
-                                cpu_id,
-                                event.pid,
-                                dest_ip,
-                                dest_port,
-                                event.cgroup_id,
-                                event.timestamp
-                            );
-
-                            // TODO
-                            // otel metric
-                        }
-                    }
-                    Err(_) => {
-                        break;
-                    }
-                }
+                println!(
+                    "PID {} connecting to {}:{} (cgroup_id={}, ts={})",
+                    event.pid,
+                    dest_ip,
+                    dest_port,
+                    event.cgroup_id,
+                    event.timestamp
+                );
             }
-        });
-    }
+            // If no events were found, sleep for a short duration to prevent 100% CPU usage.
+            // This is the standard way to handle polling in a blocking thread.
+            if !has_work {
+                std::thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
+            }
+        }
+    });
 
     info!("Monitoring active. Press Ctrl-C to exit.");
     signal::ctrl_c().await?;
