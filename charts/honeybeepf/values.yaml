@@ -9,8 +9,9 @@ image:
   pullPolicy: IfNotPresent
 imagePullSecrets: [] # List for private registry credentials
 
-# Annotations for the pod (e.g., Prometheus scraping)
+# Annotations for the pod
 podAnnotations: {}
+  # testAnnotation: "testValue"
 
 # Metrics exposure for scraping by OpenTelemetry Collector (Prometheus receiver)
 metrics:

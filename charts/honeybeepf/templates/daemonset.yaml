@@ -14,18 +14,15 @@ spec:
       maxUnavailable: 1
   template:
     metadata:
-      {{- if .Values.metrics.enabled }}
+      {{- if or .Values.metrics.enabled .Values.podAnnotations }}
       annotations:
+      {{- if .Values.metrics.enabled }}
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.metrics.port }}"
         prometheus.io/path: "{{ .Values.metrics.path }}"
-        {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      {{- else }}
+      {{- end }}
       {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
+      {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- end }}
       labels:
