@@ -10,11 +10,11 @@ data:
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
 
   # Built-in Probe Toggles (High-level)
-  PROBE_BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
-  PROBE_NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
+  BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
+  BUILTIN_PROBES__NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
   
   # Collection Interval (Resource Management Action Item)
-  PROBE_INTERVAL: {{ .Values.builtinProbes.interval | quote }}
+  BUILTIN_PROBES__INTERVAL: {{ .Values.builtinProbes.interval | quote }}
 
   # Custom Probe JSON: Serialized for the Aya/Rust agent
   {{- if or .Values.customProbes.kprobes .Values.customProbes.uprobes .Values.customProbes.tracepoints }}
