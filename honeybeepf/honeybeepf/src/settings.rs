@@ -1,6 +1,8 @@
 use config::{Config, ConfigError, Environment};
 use serde::Deserialize;
 
+const DEFAULT_PROBE_INTERVAL_SECONDS: u32 = 60;
+
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct BuiltinProbes {
@@ -36,12 +38,13 @@ impl Settings {
         // Convert Option<bool> / Option<u32> to primitive POD types
         let probe_block_io = self.builtin_probes.block_io.unwrap_or(false);
         let probe_network_latency = self.builtin_probes.network_latency.unwrap_or(false);
-        let probe_interval = self.builtin_probes.interval.unwrap_or(0);
+        // Use a sensible non-zero default interval (in seconds) when not configured
+        let probe_interval = self.builtin_probes.interval.unwrap_or(DEFAULT_PROBE_INTERVAL_SECONDS);
 
         honeybeepf_common::CommonConfig {
-            probe_block_io: if probe_block_io { 1 } else { 0 },
-            probe_network_latency: if probe_network_latency { 1 } else { 0 },
-            probe_interval: probe_interval as u64,
+            probe_block_io: probe_block_io as u8,
+            probe_network_latency: probe_network_latency as u8,
+            probe_interval: probe_interval as u32,
         }
     }
 }
@@ -49,23 +52,43 @@ impl Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_load_settings() {
         // Ensure .env is loaded
         dotenvy::dotenv().ok();
-        
+
         // Manual override for testing deterministic values
         unsafe {
             std::env::set_var("BUILTIN_PROBES__BLOCK_IO", "true");
             std::env::set_var("BUILTIN_PROBES__INTERVAL", "42");
         }
-        
-        let settings = Settings::new().expect("Failed to load settings");
 
-        println!("Settings: {:#?}", settings);
+        let settings = Settings::new().expect("Failed to load settings");
 
         assert_eq!(settings.builtin_probes.block_io, Some(true));
         assert_eq!(settings.builtin_probes.interval, Some(42));
+    }
+
+    #[test]
+    fn test_to_common_config() {
+        let settings = Settings {
+            otel_exporter_otlp_endpoint: None,
+            otel_exporter_otlp_protocol: None,
+            builtin_probes: BuiltinProbes {
+                block_io: Some(true),
+                network_latency: None, // Should default to false (0)
+                interval: None,        // Should default to constant
+            },
+            custom_probe_config: None,
+        };
+
+        let common = settings.to_common_config();
+
+        assert_eq!(common.probe_block_io, 1);
+        assert_eq!(common.probe_network_latency, 0);
+        assert_eq!(common.probe_interval, DEFAULT_PROBE_INTERVAL_SECONDS);
     }
 }

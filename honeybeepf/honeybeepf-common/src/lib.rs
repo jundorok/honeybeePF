@@ -19,7 +19,7 @@ unsafe impl aya::Pod for ConnectionEvent {}
 pub struct CommonConfig {
     pub probe_block_io: u8,
     pub probe_network_latency: u8,
-    pub probe_interval: u64,
+    pub probe_interval: u32,
 }
 
 #[cfg(feature = "user")]
