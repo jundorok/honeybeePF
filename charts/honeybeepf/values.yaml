@@ -9,8 +9,36 @@ image:
   pullPolicy: IfNotPresent
 imagePullSecrets: [] # List for private registry credentials
 
-# Annotations for the pod (e.g., Prometheus scraping)
+# Annotations for the pod
 podAnnotations: {}
+  # testAnnotation: "testValue"
+
+# Metrics exposure for scraping by OpenTelemetry Collector (Prometheus receiver)
+metrics:
+  enabled: true
+  port: 9464
+  path: "/metrics"
+  service:
+    enabled: true
+    type: ClusterIP
+    annotations: {}
+    labels: {}
+  # If want to use ServiceMonitor you must enable ServiceMonitor
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+    namespace: ""
+
+
+# Data Output
+output:
+  # if you want to send data to OpenTelemetry Collector from your application set this values.
+  otlp:
+    endpoint: "otel-collector.monitoring.svc:4317"
+    protocol: "grpc"
+
 
 # Service Account for RBAC permissions
 serviceAccount:
@@ -30,12 +58,6 @@ customProbes:
   kprobes: []
   uprobes: []
   tracepoints: []
-
-# Data Output (OTLP for observability backends)
-output:
-  otlp:
-    endpoint: "otel-collector.monitoring.svc:4317"
-    protocol: "grpc"
 
 # Security Context: Hardened for production
 securityContext:
