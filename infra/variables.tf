@@ -33,3 +33,15 @@ variable "node_memory_gbs" {
 variable "node_shape" {
   default = "VM.Standard.A1.Flex"
 }
+
+variable "bastion_client_cidr" {
+  default     = ["0.0.0.0/0"]
+  description = "List of CIDR blocks allowed to connect to the Bastion Service"
+  type        = list(string)
+}
+
+variable "bastion_max_session_ttl_in_seconds" {
+  default     = 1800
+  description = "The maximum amount of time (in seconds) that a bastion session can remain active."
+  type        = number
+}

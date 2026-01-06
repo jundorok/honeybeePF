@@ -1,12 +1,21 @@
 # OCI Free Tier Kubernetes Infrastructure
 
-This directory contains Terraform configuration to provision an Oracle Kubernetes Engine (OKE) cluster that fits entirely within the **OCI Always Free Tier** limits.
+This directory contains Terraform configuration to provision a fully private, secure Oracle Kubernetes Engine (OKE) cluster that fits entirely within the **OCI Always Free Tier** limits.
+
+## Architecture
+
+![Architecture Diagram](architecture.png)
+
+*   **Cluster**: API Endpoint is **Private** (No public internet access).
+*   **Nodes**: Worker nodes are in a **Private Subnet** (No public IPs).
+*   **Access**: Secure SSH Tunnel via **OCI Managed Bastion Service** (Free).
 
 ## Resources Created
 
-*   **VCN**: Virtual Cloud Network with Public and Private subnets.
+*   **VCN**: Virtual Cloud Network (10.0.0.0/16) with Public/Private subnets.
 *   **OKE Cluster**: "Basic" type cluster (Free).
-*   **Node Pool**: 2x Ampere A1 instances (2 OCPUs, 12GB RAM each).
+*   **Node Pool**: 2x Ampere A1 instances (2 OCPUs, 12GB RAM each) running OKE-optimized images.
+*   **Bastion**: OCI Managed Bastion Service (Zero cost, no VM management).
 
 ## Prerequisites
 
@@ -15,47 +24,73 @@ This directory contains Terraform configuration to provision an Oracle Kubernete
     *   Install: `brew install oci-cli` (macOS) or see [official docs](https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/cliinstall.htm).
     *   Configure: Run `oci setup config` and follow the prompts.
 3.  **Terraform**: Installed on your machine.
+4.  **OCI Credentials**: You need your Tenancy OCID, User OCID, Fingerprint, and Private Key.
 
-## How to Use
+## Quick Start (Makefile)
 
-1.  **Initialize Terraform**:
-    ```bash
-    terraform init
-    ```
+We use a `Makefile` to simplify all commands.
 
-2.  **Configure Environment Variables**:
-    Instead of hardcoding values, we use environment variables. Run these commands in your terminal:
+### 1. Initialize
+```bash
+make init
+```
 
-    ```bash
-    # Set the Compartment ID (usually your Tenancy OCID for personal accounts)
-    export TF_VAR_compartment_ocid="<your-tenancy-ocid>"
+### 2. Configure Credentials
+You need to set `TF_VAR_compartment_ocid`. You can add this to your `~/.bashrc` or `~/.zshrc`:
+```bash
+export TF_VAR_compartment_ocid="<your-tenancy-ocid>"
+export TF_VAR_ssh_public_key=$(cat ~/.ssh/id_rsa.pub)
+```
 
-    # Set the SSH Public Key (for worker node access)
-    export TF_VAR_ssh_public_key=$(cat ~/.ssh/id_rsa.pub)
-    ```
+### 3. Deploy
+```bash
+make apply
+```
+*   Review the plan and type `yes`.
+*   This will create the Cluster, Nodes, and Bastion Service.
 
-3.  **Plan and Apply**:
-    ```bash
-    terraform plan
-    terraform apply
-    ```
+### 4. Generate Credentials
+Since this is a fresh cluster, you need to generate the `kubeconfig` and set up the local tunnel alias.
+```bash
+make kubeconfig
+```
 
-4.  **Access Cluster**:
-    After the apply finishes, Terraform will output a command. Run it to generate your `kubeconfig`:
-    ```bash
-    oci ce cluster create-kubeconfig ...
-    ```
+### 5. Connect (Important!)
+Since the cluster is private, you cannot connect directly. You must open a tunnel.
+
+**1. Open the Tunnel:**
+```bash
+make connect
+```
+*   This automatically creates a Bastion Session (30 minutes).
+*   It opens a secure SSH tunnel forwarding `localhost:6443` -> `Cluster`.
+*   **Keep this terminal open.**
+
+**2. Verify Access:**
+In a new terminal:
+```bash
+kubectl get nodes
+```
+(Your kubeconfig is automatically set up to use `localhost:6443`).
+
+## Configuration
+
+### Custom SSH Keys
+If you are not using the default `~/.ssh/id_rsa`, you can override them:
+```bash
+export SSH_PRIVATE_KEY="/path/to/key"
+export SSH_PUBLIC_KEY="/path/to/key.pub"
+make connect
+```
 
 ## Cleanup
 
-To remove all resources created by this Terraform configuration:
-
+To destroy all resources:
 ```bash
-terraform destroy
+make destroy
 ```
-
-Type `yes` when prompted. This will delete the Cluster, Node Pool, VCN, and all associated networking resources.
 
 ## Troubleshooting
 
-*   **Out of Host Capacity**: If you see `500-InternalError` or `Out of host capacity`, it means the region is temporarily out of free Ampere A1 instances. Wait a while and try running `terraform apply` again.
+*   **"Out of host capacity"**: This is common in Free Tier regions. If `make apply` fails on node creation, just wait and retry later. The rest of the infra will stay intact.
+*   **SSH Permission Denied**: Ensure your `~/.ssh/id_rsa.pub` matches what you provided to Terraform.
