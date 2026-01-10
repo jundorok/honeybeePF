@@ -28,6 +28,12 @@ pub trait HoneyBeeEvent {
     }
 }
 
+#[repr(u32)]
+pub enum EmitStatus {
+    Success = 0,
+    Failure = 1,
+}
+
 /// A generic reporter function to reduce boilerplate
 pub fn emit_event<T: HoneyBeeEvent + 'static>(ringbuf: &RingBuf, ctx: &TracePointContext) -> u32 {
     if let Some(mut slot) = ringbuf.reserve::<T>(0) {
@@ -37,7 +43,7 @@ pub fn emit_event<T: HoneyBeeEvent + 'static>(ringbuf: &RingBuf, ctx: &TracePoin
         match event.fill(ctx) {
             Ok(_) => {
                 slot.submit(0);
-                0
+                EmitStatus::Success as u32
             }
             Err(e) => {
                 slot.discard(0);
@@ -45,6 +51,6 @@ pub fn emit_event<T: HoneyBeeEvent + 'static>(ringbuf: &RingBuf, ctx: &TracePoin
             }
         }
     } else {
-        1 // RingBuf full or reservation failed
+        EmitStatus::Failure as u32
     }
 }

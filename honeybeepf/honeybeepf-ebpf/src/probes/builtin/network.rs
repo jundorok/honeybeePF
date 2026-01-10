@@ -2,12 +2,7 @@ use aya_ebpf::{
     macros::{map, tracepoint},
     maps::RingBuf,
     programs::TracePointContext,
-    helpers::{
-        bpf_get_current_pid_tgid,
-        bpf_ktime_get_ns,
-        bpf_get_current_cgroup_id,
-        bpf_probe_read_user,
-    },
+    helpers::{bpf_probe_read_user},
 };
 use honeybeepf_common::ConnectionEvent;
 
