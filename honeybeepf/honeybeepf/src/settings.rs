@@ -39,7 +39,10 @@ impl Settings {
         let probe_block_io = self.builtin_probes.block_io.unwrap_or(false);
         let probe_network_latency = self.builtin_probes.network_latency.unwrap_or(false);
         // Use a sensible non-zero default interval (in seconds) when not configured
-        let probe_interval = self.builtin_probes.interval.unwrap_or(DEFAULT_PROBE_INTERVAL_SECONDS);
+        let probe_interval = self
+            .builtin_probes
+            .interval
+            .unwrap_or(DEFAULT_PROBE_INTERVAL_SECONDS);
 
         honeybeepf_common::CommonConfig {
             probe_block_io: probe_block_io as u8,
@@ -51,8 +54,9 @@ impl Settings {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serial_test::serial;
+
+    use super::*;
 
     #[test]
     #[serial]
