@@ -75,7 +75,7 @@ impl HoneyBeeEvent for BlockIoEvent {
         
         let header_ptr = ctx.as_ptr() as *const BlockIoTrace;
 
-         self.dev = unsafe {
+        self.dev = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).dev) as *const u32)
                 .map_err(|_| 1u32)?
         };
@@ -106,7 +106,7 @@ impl HoneyBeeEvent for BlockIoEvent {
         };
         
         // Event type is set by the caller
-        self.event_type = 0; 
+        self.event_type = BlockIoEventType::Unknown as u8;
         
         Ok(())
     }

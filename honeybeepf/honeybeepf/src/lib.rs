@@ -41,7 +41,7 @@ impl HoneyBeeEngine {
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
         }
-        
+
         Ok(())
     }
 }
