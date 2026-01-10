@@ -35,6 +35,25 @@ pub struct CommonConfig {
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for CommonConfig {}
 
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BlockIoEventType {
+    Unknown = 0,
+    Start = 1,
+    Done = 2,
+    // Add future types here as needed
+}
+
+impl From<u8> for BlockIoEventType {
+    fn from(v: u8) -> Self {
+        match v {
+            1 => Self::Start,
+            2 => Self::Done,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct BlockIoEvent {
@@ -45,7 +64,7 @@ pub struct BlockIoEvent {
     pub bytes: u32,
     pub rwbs: [u8; 8],
     pub comm: [u8; 16],
-    pub event_type: u8, // 1: start, 2: done
+    pub event_type: u8, // Casts to BlockIoEventType
 }
 
 #[cfg(feature = "user")]

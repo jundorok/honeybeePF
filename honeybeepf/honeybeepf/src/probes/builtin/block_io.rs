@@ -1,6 +1,6 @@
 use anyhow::Result;
 use aya::Bpf;
-use honeybeepf_common::BlockIoEvent;
+use honeybeepf_common::{BlockIoEvent, BlockIoEventType};
 use log::info;
 
 use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointConfig};
@@ -38,10 +38,10 @@ impl Probe for BlockIoProbe {
                 .unwrap_or("<invalid>")
                 .trim_matches(char::from(0));
 
-            let type_str = if event.event_type == 1 {
-                "START"
-            } else {
-                "DONE"
+            let type_str = match BlockIoEventType::from(event.event_type) {
+                BlockIoEventType::Start => "START",
+                BlockIoEventType::Done => "DONE",
+                BlockIoEventType::Unknown => "UNKNOWN",
             };
 
             info!(

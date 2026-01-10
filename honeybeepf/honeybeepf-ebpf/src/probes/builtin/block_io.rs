@@ -39,7 +39,7 @@ struct BlockIoTrace {
     cmd: [u8; 4], // Optional, often present
 }
 
-use honeybeepf_common::EventMetadata;
+use honeybeepf_common::{BlockIoEventType, EventMetadata};
 
 #[repr(transparent)]
 pub struct BlockIoStart(BlockIoEvent);
@@ -49,7 +49,7 @@ impl HoneyBeeEvent for BlockIoStart {
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
         self.0.fill(ctx)?;
-        self.0.event_type = 1;
+        self.0.event_type = BlockIoEventType::Start as u8;
         Ok(())
     }
 }
@@ -62,7 +62,7 @@ impl HoneyBeeEvent for BlockIoDone {
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
         self.0.fill(ctx)?;
-        self.0.event_type = 2;
+        self.0.event_type = BlockIoEventType::Done as u8;
         Ok(())
     }
 }
