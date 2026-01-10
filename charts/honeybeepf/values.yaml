@@ -81,7 +81,5 @@ resources:
     memory: "128Mi"
 
 # Scheduling
-nodeSelector: {}
-tolerations:
-  - effect: NoSchedule
-    operator: Exists
+nodeSelector:
+  kubernetes.io/os: linux
