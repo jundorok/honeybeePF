@@ -12,7 +12,6 @@ use aya_ebpf::{
         bpf_probe_read_user,
     },
 };
-use aya_log_ebpf::info;
 use honeybeepf_common::ConnectionEvent;
 
 const AF_INET: u16 = 2;
@@ -57,7 +56,7 @@ fn try_connect_trace(ctx: TracePointContext) -> Result<(), u32> {
 
     // Attempt to reserve a slot in the ring buffer
     if let Some(mut slot) = EVENTS.reserve::<ConnectionEvent>(0) {
-        let event = unsafe { slot.as_mut_ptr() };
+        let event = { slot.as_mut_ptr() };
         
         // Initialize common event fields safely using the reserved slot
         unsafe {
