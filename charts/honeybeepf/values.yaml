@@ -61,7 +61,7 @@ customProbes:
 
 # Security Context: Hardened for production
 securityContext:
-  privileged: false
+  privileged: true
   readOnlyRootFilesystem: true # Added for enhanced security posture
   capabilities:
     drop:
@@ -70,6 +70,7 @@ securityContext:
       - SYS_ADMIN
       - BPF
       - NET_ADMIN
+      - SYS_RESOURCE
 
 # Resource limits with robust parsing (quotes)
 resources:

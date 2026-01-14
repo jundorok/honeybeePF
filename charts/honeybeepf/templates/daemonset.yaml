@@ -79,11 +79,24 @@ spec:
           volumeMounts:
             - mountPath: /sys/fs/bpf
               name: bpf-fs
-          resources:
+            - mountPath: /sys/kernel/tracing
+              name: tracefs
+              readOnly: false
+            - mountPath: /sys/kernel/debug
+              name: debugfs
+              readOnly: false
             {{- toYaml .Values.resources | nindent 12 }}
       
       volumes:
         - name: bpf-fs
           hostPath:
             path: /sys/fs/bpf
+            type: Directory
+        - name: tracefs
+          hostPath:
+            path: /sys/kernel/tracing
+            type: Directory
+        - name: debugfs
+          hostPath:
+            path: /sys/kernel/debug
             type: Directory
