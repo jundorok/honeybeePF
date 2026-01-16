@@ -4,7 +4,7 @@ fullnameOverride: ""
 
 # Image configuration including private registry support
 image:
-  repository: "jundorok/honeybeepf"
+  repository: "dorokrok/honeybeepf"
   tag: "latest"
   pullPolicy: IfNotPresent
 imagePullSecrets: [] # List for private registry credentials

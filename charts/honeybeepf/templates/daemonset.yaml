@@ -77,8 +77,8 @@ spec:
                 name: {{ include "honeybeepf.fullname" . }}
 
           volumeMounts:
-            - mountPath: /sys/fs/bpf
-              name: bpf-fs
+            - name: bpf-fs
+              mountPath: /sys/fs/bpf
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       
