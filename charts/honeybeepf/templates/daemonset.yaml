@@ -85,10 +85,9 @@ spec:
             - mountPath: /sys/kernel/debug
               name: debugfs
               readOnly: false
-          {{- with .Values.resources }}
           resources:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- toYaml .Values.resources | nindent 12 }}
+      
       volumes:
         - name: bpf-fs
           hostPath:

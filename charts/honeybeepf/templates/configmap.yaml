@@ -6,6 +6,9 @@ metadata:
     {{- include "honeybeepf.labels" . | nindent 4 }}
 data:
   # OTLP Configuration for raw data transmission
+
+  RUST_LOG: "info"
+
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
 
