@@ -2,7 +2,8 @@ use anyhow::{Context, Result};
 use aya::maps::RingBuf;
 use aya::programs::TracePoint;
 use aya::Bpf;
-use log::debug;
+use log::{debug, info, warn};
+use std::path::Path;
 use std::time::Duration;
 
 pub mod builtin;
@@ -20,8 +21,28 @@ pub struct TracepointConfig<'a> {
 
 pub const POLL_INTERVAL_MS: u64 = 10;
 
-pub fn attach_tracepoint(bpf: &mut Bpf, config: TracepointConfig) -> Result<()> {
-    debug!("Loading program {}", config.program_name);
+fn tracepoint_exists(category: &str, name: &str) -> bool {
+    const TRACEFS_MOUNT_POINTS: [&str; 2] = ["/sys/kernel/tracing", "/sys/kernel/debug/tracing"];
+
+    TRACEFS_MOUNT_POINTS.iter().any(|base| {
+        Path::new(base)
+            .join("events")
+            .join(category)
+            .join(name)
+            .exists()
+    })
+}
+
+pub fn attach_tracepoint(bpf: &mut Bpf, config: TracepointConfig) -> Result<bool> {
+    if !tracepoint_exists(config.category, config.name) {
+        warn!(
+            "Tracepoint {}:{} not available; skipping {}",
+            config.category, config.name, config.program_name
+        );
+        return Ok(false);
+    }
+
+    info!("Loading program {}", config.program_name);
     let program: &mut TracePoint = bpf
         .program_mut(config.program_name)
         .with_context(|| format!("Failed to find {} program", config.program_name))?
@@ -30,7 +51,7 @@ pub fn attach_tracepoint(bpf: &mut Bpf, config: TracepointConfig) -> Result<()> 
     program
         .attach(config.category, config.name)
         .with_context(|| format!("Failed to attach {}", config.name))?;
-    Ok(())
+    Ok(true)
 }
 
 pub fn spawn_ringbuf_handler<T, F>(bpf: &mut Bpf, map_name: &str, handler: F) -> Result<()>

@@ -20,7 +20,6 @@ impl Probe for NetworkLatencyProbe {
                 name: "sys_enter_connect",
             },
         )?;
-        info!("Network latency probes attached.");
         
         spawn_ringbuf_handler(bpf, "NETWORK_EVENTS", |event: ConnectionEvent| {
             let dest_ip = Ipv4Addr::from(u32::from_be(event.dest_addr));
