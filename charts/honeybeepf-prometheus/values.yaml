@@ -1,0 +1,28 @@
+prometheus:
+  server:
+    persistentVolume:
+      enabled: false
+      storageClassName: "local-path"
+      size: 5Gi
+    retention: "2d"
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 200m
+        memory: 512Mi
+    service:
+      type: ClusterIP
+  
+  alertmanager:
+    enabled: false
+  
+  pushgateway:
+    enabled: false
+  
+  nodeExporter:
+    enabled: false
+  
+  kubeStateMetrics:
+    enabled: false
