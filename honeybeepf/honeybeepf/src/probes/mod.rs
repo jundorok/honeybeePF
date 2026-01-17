@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use aya::maps::RingBuf;
 use aya::programs::TracePoint;
 use aya::Bpf;
-use log::{debug, info, warn};
+use log::{info, warn};
 use std::path::Path;
 use std::time::Duration;
 
