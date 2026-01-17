@@ -3,15 +3,21 @@ use std::net::Ipv4Addr;
 use anyhow::Result;
 use aya::Bpf;
 use honeybeepf_common::ConnectionEvent;
-use log::info;
+use tracing::info;
 
 use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointConfig};
+
+// Define AF_INET constant for IPv4 filtering. 
+// In the Linux kernel, AF_INET is usually 2.
+const AF_INET: u16 = 2;
 
 pub struct NetworkLatencyProbe;
 
 impl Probe for NetworkLatencyProbe {
     fn attach(&self, bpf: &mut Bpf) -> Result<()> {
         info!("Attaching network latency probes...");
+        
+        // Attach tracepoint to the 'connect' system call entry.
         attach_tracepoint(
             bpf,
             TracepointConfig {
@@ -20,15 +26,30 @@ impl Probe for NetworkLatencyProbe {
                 name: "sys_enter_connect",
             },
         )?;
+        
         info!("Network latency probes attached.");
         
+        // Spawn a background handler to process events from the eBPF ring buffer.
         spawn_ringbuf_handler(bpf, "NETWORK_EVENTS", |event: ConnectionEvent| {
+            // FILTER: Only process IPv4 (AF_INET) events and ignore invalid destination addresses.
+            // This filters out noise like 0.0.0.0:0 and non-IPv4 traffic.
+            if event.address_family != AF_INET || event.dest_addr == 0 {
+                return;
+            }
+
+            // Convert raw binary data from kernel space to human-readable Rust types.
+            // u32/u16 are converted from Big-Endian (network byte order) to Host-Endian.
             let dest_ip = Ipv4Addr::from(u32::from_be(event.dest_addr));
             let dest_port = u16::from_be(event.dest_port);
 
+            // Log the captured outbound connection attempt.
             info!(
-                "PID {} connecting to {}:{} (cgroup_id={}, ts={})",
-                event.metadata.pid, dest_ip, dest_port, event.metadata.cgroup_id, event.metadata.timestamp
+                target: "kernel_monitor",
+                pid = event.metadata.pid,
+                dest = %dest_ip,
+                port = dest_port,
+                cgroup_id = event.metadata.cgroup_id,
+                "New outbound connection detected"
             );
         })?;
         
