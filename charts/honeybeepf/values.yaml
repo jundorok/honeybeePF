@@ -16,7 +16,7 @@ podAnnotations: {}
 # Metrics exposure for scraping by OpenTelemetry Collector (Prometheus receiver)
 metrics:
   enabled: true
-  port: 19464
+  port: 9464
   path: "/metrics"
   service:
     enabled: true
@@ -62,7 +62,7 @@ customProbes:
 # Security Context: Hardened for production
 securityContext:
   privileged: true
-  readOnlyRootFilesystem: false # Added for enhanced security posture
+  readOnlyRootFilesystem: false
   capabilities:
     drop:
       - ALL

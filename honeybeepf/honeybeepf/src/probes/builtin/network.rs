@@ -7,9 +7,10 @@ use tracing::info;
 
 use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointConfig};
 
-// Define AF_INET constant for IPv4 filtering. 
-// In the Linux kernel, AF_INET is usually 2.
-const AF_INET: u16 = 2;
+// honeybeepf-ebpf/src/probes/builtin/network.rs
+// AF_INET from Linux kernel UAPI (include/linux/socket.h)
+// This is a stable kernel ABI constant, safe to hardcode
+const AF_INET: u16 = libc::AF_INET as u16;
 
 pub struct NetworkLatencyProbe;
 

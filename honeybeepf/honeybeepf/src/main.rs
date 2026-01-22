@@ -3,6 +3,7 @@ use aya::include_bytes_aligned;
 use clap::Parser;
 use tracing::{info, warn};
 use tracing_subscriber::{self, EnvFilter};
+use honeybeepf::observability::otlp::init_otlp;
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -59,27 +60,6 @@ async fn main() -> Result<()> {
 
     // Start the main event loop and attach probes to the kernel.
     engine.run().await?;
-
-    Ok(())
-}
-
-/// Initializes the OpenTelemetry tracing pipeline with a gRPC exporter.
-async fn init_otlp(endpoint: &str) -> Result<()> {
-    use opentelemetry_otlp::WithExportConfig;
-    use std::time::Duration;
-
-    // Configure the OTLP exporter with a 3-second connection timeout.
-    let exporter = opentelemetry_otlp::new_exporter()
-        .tonic()
-        .with_endpoint(endpoint)
-        .with_timeout(Duration::from_secs(3)); 
-
-    // Install the tracing pipeline into the global tracing registry.
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(exporter)
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
-        .context("Failed to install OTLP pipeline")?;
 
     Ok(())
 }
