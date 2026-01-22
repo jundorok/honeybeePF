@@ -25,3 +25,4 @@ pub async fn init(settings: &Settings) {
     // if settings.metrics.enabled {
     //     metrics::start_server(settings.metrics.port).await;
     // }
+}
