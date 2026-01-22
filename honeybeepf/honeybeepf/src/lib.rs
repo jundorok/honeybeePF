@@ -1,4 +1,5 @@
 pub mod settings;
+pub mod observability;
 use anyhow::Result;
 use aya::Bpf;
 use log::{info, warn};
