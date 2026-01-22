@@ -28,8 +28,6 @@ impl Probe for BlockIoProbe {
             },
         )?;
 
-        info!("Block IO probes attached.");
-
         spawn_ringbuf_handler(bpf, "BLOCK_IO_EVENTS", |event: BlockIoEvent| {
             let rwbs = std::str::from_utf8(&event.rwbs)
                 .unwrap_or("<invalid>")

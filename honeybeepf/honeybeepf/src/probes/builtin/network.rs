@@ -27,8 +27,6 @@ impl Probe for NetworkLatencyProbe {
             },
         )?;
         
-        info!("Network latency probes attached.");
-        
         // Spawn a background handler to process events from the eBPF ring buffer.
         spawn_ringbuf_handler(bpf, "NETWORK_EVENTS", |event: ConnectionEvent| {
             // FILTER: Only process IPv4 (AF_INET) events and ignore invalid destination addresses.
