@@ -1,9 +1,7 @@
 use anyhow::{Context, Result};
 use aya::include_bytes_aligned;
 use clap::Parser;
-use tracing::{info, warn};
 use tracing_subscriber::{self, EnvFilter};
-use honeybeepf::observability::otlp::init_otlp;
 
 #[derive(Debug, Parser)]
 struct Opt {
@@ -30,26 +28,7 @@ async fn main() -> Result<()> {
     // Load agent settings from environment variables or a .env file.
     let settings = honeybeepf::settings::Settings::new().context("Failed to load settings")?;
 
-    // Check if an OTLP endpoint is provided in the configuration.
-    if let Some(endpoint) = &settings.otel_exporter_otlp_endpoint {
-        let endpoint_c = endpoint.clone();
-        
-        // IMPORTANT: Spawn OTLP initialization in a background task.
-        // This prevents the main thread from blocking (hanging in futex_wait)
-        // if the remote collector is unreachable or slow to respond.
-        tokio::spawn(async move {
-            info!("Attempting to connect to OTLP collector: {}", endpoint_c);
-            
-            // init_otlp includes a connection timeout to ensure this task
-            // eventually fails rather than waiting forever.
-            if let Err(e) = init_otlp(&endpoint_c).await {
-                // If the collector is unavailable, log a warning and fallback to local logging.
-                warn!("Failed to connect to OTLP collector: {}. Continuing in local mode.", e);
-            } else {
-                info!("Successfully connected to OTLP collector.");
-            }
-        });
-    }
+    honeybeepf::observability::init(&settings).await;
 
     // Load the eBPF bytecode and initialize the HoneyBee engine.
     // include_bytes_aligned ensures the bytecode is correctly aligned in memory for Aya.

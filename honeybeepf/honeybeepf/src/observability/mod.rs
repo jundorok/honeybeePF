@@ -1,10 +1,9 @@
 pub mod otlp;
-// pub mod metrics;
+pub mod metrics;
 
 use crate::settings::Settings;
 use tracing::{info, warn};
 
-/// Initialize all observability components based on settings
 pub async fn init(settings: &Settings) {
     // Initialize OTLP if configured
     if let Some(endpoint) = &settings.otel_exporter_otlp_endpoint {
@@ -21,8 +20,16 @@ pub async fn init(settings: &Settings) {
         });
     }
     
-    // TODO: Initialize Prometheus metrics server
-    // if settings.metrics.enabled {
-    //     metrics::start_server(settings.metrics.port).await;
-    // }
+    // Initialize Prometheus metrics server
+    if let Some(metrics_config) = &settings.metrics {
+        if metrics_config.enabled.unwrap_or(false) {
+            let port = metrics_config.port.unwrap_or(9464);
+            
+            tokio::spawn(async move {
+                if let Err(e) = metrics::start_metrics_server(port).await {
+                    warn!("Failed to start metrics server: {}", e);
+                }
+            });
+        }
+    }
 }

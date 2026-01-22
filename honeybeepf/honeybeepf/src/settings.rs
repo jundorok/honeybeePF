@@ -13,11 +13,19 @@ pub struct BuiltinProbes {
 
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
+pub struct MetricsConfig {
+    pub enabled: Option<bool>,
+    pub port: Option<u16>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[allow(unused)]
 pub struct Settings {
     pub otel_exporter_otlp_endpoint: Option<String>,
     pub otel_exporter_otlp_protocol: Option<String>,
     pub builtin_probes: BuiltinProbes,
     pub custom_probe_config: Option<String>,
+    pub metrics: Option<MetricsConfig>,
 }
 
 impl Settings {
