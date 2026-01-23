@@ -1,7 +1,9 @@
 pub mod settings;
 pub mod observability;
+
 use anyhow::Result;
-use aya::Bpf;
+use aya::Ebpf;  // Bpf → Ebpf
+use aya_log::EbpfLogger;  // BpfLogger → EbpfLogger
 use log::{info, warn};
 use tokio::signal;
 
@@ -14,23 +16,31 @@ use crate::probes::Probe;
 
 pub struct HoneyBeeEngine {
     pub settings: Settings,
-    bpf: Bpf,
+    bpf: Ebpf,  // Bpf → Ebpf
 }
 
 impl HoneyBeeEngine {
     pub fn new(settings: Settings, bytecode: &[u8]) -> Result<Self> {
         bump_memlock_rlimit()?;
-        let bpf = Bpf::load(bytecode)?;
+        
+        let mut bpf = Ebpf::load(bytecode)?;  // Bpf → Ebpf
+        
+        if let Err(e) = EbpfLogger::init(&mut bpf) {  // BpfLogger → EbpfLogger
+            warn!("Failed to initialize eBPF logger: {}", e);
+        } else {
+            info!("eBPF logger initialized successfully");
+        }
+        
         Ok(Self { settings, bpf })
     }
 
     pub async fn run(mut self) -> Result<()> {
         self.attach_probes()?;
-
+        
         info!("Monitoring active. Press Ctrl-C to exit.");
         signal::ctrl_c().await?;
         info!("Exiting...");
-
+        
         Ok(())
     }
 
@@ -38,11 +48,11 @@ impl HoneyBeeEngine {
         if self.settings.builtin_probes.network_latency.unwrap_or(false) {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
         }
-
+        
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
         }
-
+        
         Ok(())
     }
 }
@@ -52,9 +62,11 @@ fn bump_memlock_rlimit() -> Result<()> {
         rlim_cur: libc::RLIM_INFINITY,
         rlim_max: libc::RLIM_INFINITY,
     };
+    
     let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlim) };
     if ret != 0 {
         warn!("Failed to increase rlimit");
     }
+    
     Ok(())
 }

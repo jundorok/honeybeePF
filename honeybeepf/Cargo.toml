@@ -12,10 +12,12 @@ license = "MIT OR Apache-2.0"
 edition = "2024"
 
 [workspace.dependencies]
-aya = "0.12"
-aya-ebpf = "0.1"
-aya-log-ebpf = "0.1"
+aya = "0.13"          
+aya-ebpf = "0.1.0"      
+aya-log = "0.2"      
+aya-log-ebpf = "0.1.0"  
 aya-build = "0.1"
+aya-log-common = "0.1.14"
 
 # Required for tower/indexmap compatibility
 indexmap = "=1.9.3"

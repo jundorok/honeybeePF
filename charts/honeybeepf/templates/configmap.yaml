@@ -5,6 +5,10 @@ metadata:
   labels:
     {{- include "honeybeepf.labels" . | nindent 4 }}
 data:
+
+  METRICS__ENABLED: {{ .Values.metrics.enabled | quote }}
+  METRICS__PORT: {{ .Values.metrics.port | quote }}
+  
   # OTLP Configuration for raw data transmission
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
