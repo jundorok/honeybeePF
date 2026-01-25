@@ -5,6 +5,9 @@ metadata:
   labels:
     {{- include "honeybeepf.labels" . | nindent 4 }}
 data:
+  # Rust Log Level
+  RUST_LOG: {{ .Values.rustLog | quote }}
+
   # OTLP Configuration for raw data transmission
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
@@ -12,7 +15,7 @@ data:
   # Built-in Probe Toggles (High-level)
   BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
   BUILTIN_PROBES__NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
-  
+  BUILTIN_PROBES__GPU_OPEN: {{ .Values.builtinProbes.gpu_open.enabled | quote }}
   # Collection Interval (Resource Management Action Item)
   BUILTIN_PROBES__INTERVAL: {{ .Values.builtinProbes.interval | quote }}
 
