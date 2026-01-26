@@ -12,6 +12,13 @@ use super::gpu_utils::get_gpu_index;
 
 const MAX_EVENT_SIZE: u32 = 1024 * 1024;
 
+#[repr(u32)]
+pub enum EmitGpuStatus {
+    Success = 0,
+    Failure = 1,
+    NotGpuDevice = 2,
+}
+
 #[map]
 pub static GPU_OPEN_EVENTS: RingBuf = RingBuf::with_byte_size(MAX_EVENT_SIZE, 0);
 
@@ -41,24 +48,24 @@ impl HoneyBeeEvent for GpuOpenEvent {
         let header_ptr = ctx.as_ptr() as *const SysEnterOpenat;
         let filename_ptr: u64 = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).filename) as *const u64)
-                .map_err(|_| 1u32)?
+                .map_err(|_| EmitGpuStatus::Failure as u32)?
         };
         if filename_ptr == 0 {
-            return Err(1);
+            return Err(EmitGpuStatus::Failure as u32);
         }
         let mut filename_buf: [u8; 64] = [0u8; 64];
         let filename_len = unsafe {
             bpf_probe_read_user_str_bytes(filename_ptr as *const u8, &mut filename_buf)
-                .map_err(|_| 1u32)?
+                .map_err(|_| EmitGpuStatus::Failure as u32)?
                 .len()
         };
         let gpu_index = get_gpu_index(&filename_buf[..filename_len]);
         if gpu_index < 0 {
-            return Err(2); // Not a GPU device, will be discarded
+            return Err(EmitGpuStatus::NotGpuDevice as u32);
         }
         let flags: i64 = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).flags) as *const i64)
-                .map_err(|_| 1u32)?
+                .map_err(|_| EmitGpuStatus::Failure as u32)?
         };
 
         self.gpu_index = gpu_index;
@@ -86,11 +93,11 @@ fn emit_gpu_event(ringbuf: &RingBuf, ctx: &TracePointContext) -> u32 {
         match event.fill(ctx) {
             Ok(_) => {
                 slot.submit(0);
-                0
+                EmitGpuStatus::Success as u32
             }
-            Err(2) => {
+            Err(e) if e == EmitGpuStatus::NotGpuDevice as u32 => {
                 slot.discard(0);
-                0
+                EmitGpuStatus::Success as u32  // Silent discard for non-GPU devices
             }
             Err(e) => {
                 slot.discard(0);
@@ -98,7 +105,7 @@ fn emit_gpu_event(ringbuf: &RingBuf, ctx: &TracePointContext) -> u32 {
             }
         }
     } else {
-        1
+        EmitGpuStatus::Failure as u32
     }
 }
 
