@@ -58,8 +58,8 @@ opentelemetry-collector:
         send_batch_size: 1024
       memory_limiter:
         check_interval: 1s
-        limit_mib: 512
-        spike_limit_mib: 128
+        limit_mib: 409
+        spike_limit_mib: 102
 
     exporters:
       prometheus:
