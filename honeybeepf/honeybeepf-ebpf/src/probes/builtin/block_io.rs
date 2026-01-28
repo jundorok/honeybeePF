@@ -92,7 +92,7 @@ impl HoneyBeeEvent for BlockIoEvent {
 
         self.dev = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).dev) as *const u32)
-                .map_err(|e| {
+                .map_err(|_| {
                     info!(ctx, "[eBPF] Failed to read dev field");
                     1u32
                 })?
@@ -100,7 +100,7 @@ impl HoneyBeeEvent for BlockIoEvent {
 
         self.sector = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).sector) as *const u64)
-                .map_err(|e| {
+                .map_err(|_| {
                     info!(ctx, "[eBPF] Failed to read sector field");
                     1u32
                 })?
@@ -108,7 +108,7 @@ impl HoneyBeeEvent for BlockIoEvent {
 
         self.nr_sector = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).nr_sector) as *const u32)
-                .map_err(|e| {
+                .map_err(|_| {
                     info!(ctx, "[eBPF] Failed to read nr_sector field");
                     1u32
                 })?
@@ -116,7 +116,7 @@ impl HoneyBeeEvent for BlockIoEvent {
 
         self.bytes = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).bytes) as *const u32)
-                .map_err(|e| {
+                .map_err(|_| {
                     info!(ctx, "[eBPF] Failed to read bytes field");
                     1u32
                 })?
@@ -124,7 +124,7 @@ impl HoneyBeeEvent for BlockIoEvent {
 
         self.rwbs = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).rwbs) as *const [u8; 8])
-                .map_err(|e| {
+                .map_err(|_| {
                     info!(ctx, "[eBPF] Failed to read rwbs field");
                     1u32
                 })?
@@ -132,7 +132,7 @@ impl HoneyBeeEvent for BlockIoEvent {
 
         self.comm = unsafe {
             aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).comm) as *const [u8; 16])
-                .map_err(|e| {
+                .map_err(|_| {
                     info!(ctx, "[eBPF] Failed to read comm field");
                     1u32
                 })?
