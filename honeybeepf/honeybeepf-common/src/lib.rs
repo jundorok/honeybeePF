@@ -28,6 +28,48 @@ unsafe impl aya::Pod for GpuOpenEvent {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct GpuCloseEvent {
+    pub metadata: EventMetadata,
+    pub gpu_index: i32,
+    pub fd: i32,
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for GpuCloseEvent {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GpuFdKey {
+    pub pid: u32,
+    pub fd: i32,
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for GpuFdKey {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct GpuFdInfo {
+    pub gpu_index: i32,
+    pub _pad: i32,
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for GpuFdInfo {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PendingGpuOpen {
+    pub gpu_index: i32,
+    pub flags: i32,
+    pub filename: [u8; 64],
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for PendingGpuOpen {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct ConnectionEvent {
     pub metadata: EventMetadata,
     pub dest_addr: u32,
@@ -43,7 +85,7 @@ unsafe impl aya::Pod for ConnectionEvent {}
 pub struct CommonConfig {
     pub probe_block_io: u8,
     pub probe_network_latency: u8,
-    pub probe_gpu_open: u8,
+    pub probe_gpu: u8,
     pub probe_interval: u32,
 }
 

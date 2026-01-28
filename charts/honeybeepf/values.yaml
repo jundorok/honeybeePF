@@ -55,7 +55,8 @@ builtinProbes:
     enabled: true
   network_latency:
     enabled: false
-  gpu_open:
+  # GPU probe: tracks open and close events for GPU devices
+  gpu:
     enabled: true
   interval: 1000
 

@@ -43,7 +43,7 @@ impl HoneyBeeEngine {
             BlockIoProbe.attach(&mut self.bpf)?;
         }
 
-        if self.settings.builtin_probes.gpu_open.unwrap_or(false) {
+        if self.settings.builtin_probes.gpu.unwrap_or(false) {
             GpuOpenProbe.attach(&mut self.bpf)?;
         }
 

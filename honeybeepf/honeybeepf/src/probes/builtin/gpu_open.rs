@@ -1,6 +1,6 @@
 use anyhow::Result;
 use aya::Bpf;
-use honeybeepf_common::GpuOpenEvent;
+use honeybeepf_common::{GpuCloseEvent, GpuOpenEvent};
 use log::info;
 use std::fs;
 
@@ -12,12 +12,23 @@ fn get_process_name(pid: u32) -> String {
         .unwrap_or_else(|_| "<unknown>".to_string())
 }
 
+fn get_gpu_type(filename: &str) -> &'static str {
+    if filename.starts_with("/dev/nvidia") {
+        "NVIDIA"
+    } else if filename.starts_with("/dev/dri/") {
+        "DRI"
+    } else {
+        "Unknown"
+    }
+}
+
 pub struct GpuOpenProbe;
 
 impl Probe for GpuOpenProbe {
     fn attach(&self, bpf: &mut Bpf) -> Result<()> {
-        info!("Attaching GPU open probes...");
+        info!("Attaching GPU open/close probes...");
 
+        // Attach sys_enter_openat (check if GPU, store pending)
         attach_tracepoint(
             bpf,
             TracepointConfig {
@@ -27,37 +38,56 @@ impl Probe for GpuOpenProbe {
             },
         )?;
 
-        spawn_ringbuf_handler(bpf, "GPU_OPEN_EVENTS", |event: GpuOpenEvent| {
-            let comm = {
-                let event_comm = std::str::from_utf8(&event.comm)
-                    .unwrap_or("")
-                    .trim_matches(char::from(0));
-                if event_comm.is_empty() {
-                    get_process_name(event.metadata.pid)
-                } else {
-                    event_comm.to_string()
-                }
-            };
+        // Attach sys_exit_openat (get fd, emit open event)
+        attach_tracepoint(
+            bpf,
+            TracepointConfig {
+                program_name: "honeybeepf_gpu_open_exit",
+                category: "syscalls",
+                name: "sys_exit_openat",
+            },
+        )?;
 
+        // Attach sys_enter_close (check if GPU fd, emit close event)
+        attach_tracepoint(
+            bpf,
+            TracepointConfig {
+                program_name: "honeybeepf_gpu_close",
+                category: "syscalls",
+                name: "sys_enter_close",
+            },
+        )?;
+
+        // Handle GPU open events
+        spawn_ringbuf_handler(bpf, "GPU_OPEN_EVENTS", |event: GpuOpenEvent| {
+            let comm = get_process_name(event.metadata.pid);
             let filename = std::str::from_utf8(&event.filename)
                 .unwrap_or("<invalid>")
                 .trim_matches(char::from(0));
-
-            let gpu_type = if filename.starts_with("/dev/nvidia") {
-                "NVIDIA"
-            } else if filename.starts_with("/dev/dri/") {
-                "DRI"
-            } else {
-                "Unknown"
-            };
+            let gpu_type = get_gpu_type(filename);
 
             info!(
-                "GPU_OPEN pid={} comm={} gpu_index={} type={} file={} cgroup_id={}",
+                "GPU_OPEN pid={} comm={} gpu_index={} fd={} type={} file={} cgroup_id={}",
                 event.metadata.pid,
                 comm,
                 event.gpu_index,
+                event.fd,
                 gpu_type,
                 filename,
+                event.metadata.cgroup_id,
+            );
+        })?;
+
+        // Handle GPU close events
+        spawn_ringbuf_handler(bpf, "GPU_CLOSE_EVENTS", |event: GpuCloseEvent| {
+            let comm = get_process_name(event.metadata.pid);
+
+            info!(
+                "GPU_CLOSE pid={} comm={} gpu_index={} fd={} cgroup_id={}",
+                event.metadata.pid,
+                comm,
+                event.gpu_index,
+                event.fd,
                 event.metadata.cgroup_id,
             );
         })?;
