@@ -36,7 +36,11 @@ impl HoneyBeeEngine {
     }
 
     pub async fn run(mut self) -> Result<()> {
+        // Attach eBPF probes to kernel tracepoints
         self.attach_probes()?;
+        
+        // Initialize observability (Prometheus metrics server & OTLP tracing)
+        crate::observability::init(&self.settings).await;
         
         info!("Monitoring active. Press Ctrl-C to exit.");
         signal::ctrl_c().await?;
@@ -46,18 +50,21 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
+        // Attach network latency probe if enabled
         if self.settings.builtin_probes.network_latency.unwrap_or(false) {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
         }
         
+        // Attach block I/O probe if enabled
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
-        }        
-
+        }
+        
+        // Attach GPU open probe if enabled
         if self.settings.builtin_probes.gpu_open.unwrap_or(false) {
             GpuOpenProbe.attach(&mut self.bpf)?;
         }
-
+        
         Ok(())
     }
 }
