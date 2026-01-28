@@ -14,6 +14,20 @@ unsafe impl aya::Pod for EventMetadata {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct GpuOpenEvent {
+    pub metadata: EventMetadata,
+    pub gpu_index: i32,
+    pub fd: i32,
+    pub flags: i32,
+    pub comm: [u8; 16],
+    pub filename: [u8; 64],
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for GpuOpenEvent {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct ConnectionEvent {
     pub metadata: EventMetadata,
     pub dest_addr: u32,
@@ -29,6 +43,7 @@ unsafe impl aya::Pod for ConnectionEvent {}
 pub struct CommonConfig {
     pub probe_block_io: u8,
     pub probe_network_latency: u8,
+    pub probe_gpu_open: u8,
     pub probe_interval: u32,
 }
 

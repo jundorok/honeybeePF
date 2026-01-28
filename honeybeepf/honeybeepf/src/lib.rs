@@ -12,6 +12,7 @@ use crate::settings::Settings;
 pub mod probes;
 use crate::probes::builtin::network::NetworkLatencyProbe;
 use crate::probes::builtin::block_io::BlockIoProbe;
+use crate::probes::builtin::gpu_open::GpuOpenProbe;
 use crate::probes::Probe;
 
 pub struct HoneyBeeEngine {
@@ -51,8 +52,12 @@ impl HoneyBeeEngine {
         
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
+        }        
+
+        if self.settings.builtin_probes.gpu_open.unwrap_or(false) {
+            GpuOpenProbe.attach(&mut self.bpf)?;
         }
-        
+
         Ok(())
     }
 }

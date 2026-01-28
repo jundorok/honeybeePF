@@ -46,11 +46,16 @@ serviceAccount:
   annotations: {}
   name: ""
 
+# Rust Log Level (trace, debug, info, warn, error)
+rustLog: "info"
+
 # Hybrid Probe Configuration
 builtinProbes:
   block_io:
     enabled: false
   network_latency:
+    enabled: true
+  gpu_open:
     enabled: true
   interval: 1000
 

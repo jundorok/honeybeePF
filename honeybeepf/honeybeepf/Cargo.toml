@@ -12,6 +12,8 @@ anyhow = { workspace = true, default-features = true }
 aya = { workspace = true }
 aya-log = { workspace = true }
 aya-log-common = { workspace = true }
+chrono = "0.4"
+
 env_logger = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
