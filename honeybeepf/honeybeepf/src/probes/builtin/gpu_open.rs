@@ -1,5 +1,5 @@
 use anyhow::Result;
-use aya::Bpf;
+use aya::Ebpf;
 use honeybeepf_common::GpuOpenEvent;
 use log::info;
 use std::fs;
@@ -15,7 +15,7 @@ fn get_process_name(pid: u32) -> String {
 pub struct GpuOpenProbe;
 
 impl Probe for GpuOpenProbe {
-    fn attach(&self, bpf: &mut Bpf) -> Result<()> {
+    fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
         info!("Attaching GPU open probes...");
 
         attach_tracepoint(

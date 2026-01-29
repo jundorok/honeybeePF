@@ -1,6 +1,7 @@
 pub mod settings;
 use anyhow::Result;
-use aya::Bpf;
+use aya::Ebpf;  // Bpf → Ebpf
+use aya_log::EbpfLogger;  // BpfLogger → EbpfLogger
 use log::{info, warn};
 use tokio::signal;
 
@@ -14,13 +15,16 @@ use crate::probes::Probe;
 
 pub struct HoneyBeeEngine {
     pub settings: Settings,
-    bpf: Bpf,
+    bpf: Ebpf,
 }
 
 impl HoneyBeeEngine {
     pub fn new(settings: Settings, bytecode: &[u8]) -> Result<Self> {
         bump_memlock_rlimit()?;
-        let bpf = Bpf::load(bytecode)?;
+        let mut bpf = Ebpf::load(bytecode)?;
+        if let Err(e) = EbpfLogger::init(&mut bpf) {
+            warn!("Failed to initialize eBPF logger: {}", e);
+        }
         Ok(Self { settings, bpf })
     }
 

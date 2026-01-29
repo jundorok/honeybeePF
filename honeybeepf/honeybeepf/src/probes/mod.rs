@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use aya::maps::RingBuf;
 use aya::programs::TracePoint;
-use aya::Bpf;
+use aya::Ebpf;
 use log::{info, warn};
 use std::path::Path;
 use std::time::Duration;
@@ -10,7 +10,7 @@ pub mod builtin;
 pub mod custom;
 
 pub trait Probe {
-    fn attach(&self, bpf: &mut Bpf) -> Result<()>;
+    fn attach(&self, bpf: &mut Ebpf) -> Result<()>;
 }
 
 pub struct TracepointConfig<'a> {
@@ -33,7 +33,7 @@ fn tracepoint_exists(category: &str, name: &str) -> bool {
     })
 }
 
-pub fn attach_tracepoint(bpf: &mut Bpf, config: TracepointConfig) -> Result<bool> {
+pub fn attach_tracepoint(bpf: &mut Ebpf, config: TracepointConfig) -> Result<bool> {
     if !tracepoint_exists(config.category, config.name) {
         warn!(
             "Tracepoint {}:{} not available; skipping {}",
@@ -54,7 +54,7 @@ pub fn attach_tracepoint(bpf: &mut Bpf, config: TracepointConfig) -> Result<bool
     Ok(true)
 }
 
-pub fn spawn_ringbuf_handler<T, F>(bpf: &mut Bpf, map_name: &str, handler: F) -> Result<()>
+pub fn spawn_ringbuf_handler<T, F>(bpf: &mut Ebpf, map_name: &str, handler: F) -> Result<()>
 where
     T: Copy + Send + 'static,
     F: Fn(T) + Send + 'static,

@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use anyhow::Result;
-use aya::Bpf;
+use aya::Ebpf;
 use honeybeepf_common::ConnectionEvent;
 use log::info;
 
@@ -10,7 +10,7 @@ use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointC
 pub struct NetworkLatencyProbe;
 
 impl Probe for NetworkLatencyProbe {
-    fn attach(&self, bpf: &mut Bpf) -> Result<()> {
+    fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
         info!("Attaching network latency probes...");
         attach_tracepoint(
             bpf,
