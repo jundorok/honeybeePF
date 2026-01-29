@@ -1,5 +1,5 @@
 use anyhow::Result;
-use aya::Bpf;
+use aya::Ebpf;
 use honeybeepf_common::{BlockIoEvent, BlockIoEventType};
 use log::info;
 
@@ -8,7 +8,7 @@ use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointC
 pub struct BlockIoProbe;
 
 impl Probe for BlockIoProbe {
-    fn attach(&self, bpf: &mut Bpf) -> Result<()> {
+    fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
         info!("Attaching block IO probes...");
 
         attach_tracepoint(

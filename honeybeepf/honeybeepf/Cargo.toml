@@ -10,7 +10,7 @@ honeybeepf-common = { path = "../honeybeepf-common", features = ["user"] }
 
 anyhow = { workspace = true, default-features = true }
 aya = { workspace = true }
-# aya-log = { workspace = true }
+aya-log = { workspace = true }
 chrono = "0.4"
 env_logger = { workspace = true }
 libc = { workspace = true }
