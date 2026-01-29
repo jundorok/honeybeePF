@@ -24,7 +24,7 @@ impl HoneyBeeEngine {
         let mut bpf = Ebpf::load(bytecode)?;
         if let Err(e) = EbpfLogger::init(&mut bpf) {
             warn!("Failed to initialize eBPF logger: {}", e);
-        }   
+        }
         Ok(Self { settings, bpf })
     }
 
