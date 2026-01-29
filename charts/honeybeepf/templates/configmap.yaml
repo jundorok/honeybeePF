@@ -5,6 +5,10 @@ metadata:
   labels:
     {{- include "honeybeepf.labels" . | nindent 4 }}
 data:
+
+  METRICS__ENABLED: {{ .Values.metrics.enabled | quote }}
+  METRICS__PORT: {{ .Values.metrics.port | quote }}
+  
   # Rust Log Level
   RUST_LOG: {{ .Values.rustLog | quote }}
 

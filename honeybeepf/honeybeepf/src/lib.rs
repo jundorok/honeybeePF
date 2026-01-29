@@ -1,6 +1,9 @@
 pub mod settings;
+pub mod observability;
+
 use anyhow::Result;
-use aya::Bpf;
+use aya::Bpf;  // Ebpf → Bpf
+use aya_log::BpfLogger;  // EbpfLogger → BpfLogger
 use log::{info, warn};
 use tokio::signal;
 
@@ -20,33 +23,48 @@ pub struct HoneyBeeEngine {
 impl HoneyBeeEngine {
     pub fn new(settings: Settings, bytecode: &[u8]) -> Result<Self> {
         bump_memlock_rlimit()?;
-        let bpf = Bpf::load(bytecode)?;
+        
+        let mut bpf = Bpf::load(bytecode)?;
+        
+        if let Err(e) = BpfLogger::init(&mut bpf) {
+            warn!("Failed to initialize eBPF logger: {}", e);
+        } else {
+            info!("eBPF logger initialized successfully");
+        }
+        
         Ok(Self { settings, bpf })
     }
 
     pub async fn run(mut self) -> Result<()> {
+        // Attach eBPF probes to kernel tracepoints
         self.attach_probes()?;
-
+        
+        // Initialize observability (Prometheus metrics server & OTLP tracing)
+        crate::observability::init(&self.settings).await;
+        
         info!("Monitoring active. Press Ctrl-C to exit.");
         signal::ctrl_c().await?;
         info!("Exiting...");
-
+        
         Ok(())
     }
 
     fn attach_probes(&mut self) -> Result<()> {
+        // Attach network latency probe if enabled
         if self.settings.builtin_probes.network_latency.unwrap_or(false) {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
         }
-
+        
+        // Attach block I/O probe if enabled
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
         }
-
+        
+        // Attach GPU open probe if enabled
         if self.settings.builtin_probes.gpu_open.unwrap_or(false) {
             GpuOpenProbe.attach(&mut self.bpf)?;
         }
-
+        
         Ok(())
     }
 }
@@ -56,9 +74,11 @@ fn bump_memlock_rlimit() -> Result<()> {
         rlim_cur: libc::RLIM_INFINITY,
         rlim_max: libc::RLIM_INFINITY,
     };
+    
     let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlim) };
     if ret != 0 {
         warn!("Failed to increase rlimit");
     }
+    
     Ok(())
 }
