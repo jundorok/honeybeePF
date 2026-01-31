@@ -83,13 +83,9 @@ opentelemetry-collector:
     enabled: true
     type: ClusterIP
 
+  # Disabled - using extraScrapeConfigs in Prometheus instead
   serviceMonitor:
-    enabled: true
-    interval: 30s
-    scrapeTimeout: 10s
-    endpoints:
-    - port: prometheus
-      path: /metrics
+    enabled: false
 
   podMonitor:
     enabled: false

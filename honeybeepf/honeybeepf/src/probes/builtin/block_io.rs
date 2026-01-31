@@ -4,6 +4,7 @@ use honeybeepf_common::{BlockIoEvent, BlockIoEventType};
 use log::info;
 
 use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointConfig};
+use crate::telemetry;
 
 pub struct BlockIoProbe;
 
@@ -42,17 +43,28 @@ impl Probe for BlockIoProbe {
                 BlockIoEventType::Unknown => "UNKNOWN",
             };
 
+            // 디바이스 이름 생성 (major:minor)
+            let device = format!("{}:{}", event.dev >> 20, event.dev & 0xFFFFF);
+
             info!(
-                "BlockIO {} pid={} dev={}:{} sector={} nr_sector={} bytes={} rwbs={} comm={}",
+                "BlockIO {} pid={} dev={} sector={} nr_sector={} bytes={} rwbs={} comm={}",
                 type_str,
                 event.metadata.pid,
-                event.dev >> 20,
-                event.dev & 0xFFFFF,
+                device,
                 event.sector,
                 event.nr_sector,
                 event.bytes,
                 rwbs,
                 comm
+            );
+
+            // OpenTelemetry 메트릭 전송
+            // latency_ns는 DONE 이벤트에서만 계산 가능 (추후 구현)
+            telemetry::record_block_io_event(
+                type_str,
+                event.bytes as u64,
+                None, // latency는 별도 계산 필요
+                &device,
             );
         })?;
         Ok(())

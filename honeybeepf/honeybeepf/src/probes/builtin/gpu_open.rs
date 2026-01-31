@@ -5,6 +5,7 @@ use log::info;
 use std::fs;
 
 use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointConfig};
+use crate::telemetry;
 
 fn get_process_name(pid: u32) -> String {
     fs::read_to_string(format!("/proc/{}/comm", pid))
@@ -60,6 +61,9 @@ impl Probe for GpuOpenProbe {
                 filename,
                 event.metadata.cgroup_id,
             );
+
+            // OpenTelemetry 메트릭 전송
+            telemetry::record_gpu_open_event(filename);
         })?;
 
         Ok(())

@@ -8,9 +8,15 @@ data:
   # Rust Log Level
   RUST_LOG: {{ .Values.rustLog | quote }}
 
-  # OTLP Configuration for raw data transmission
-  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
+  # OTLP Configuration for metrics transmission to OpenTelemetry Collector
+  # Priority: Helm values -> env -> code default (FQDN)
+  # gRPC endpoint (port 4317)
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s" .Values.output.otlp.endpoint | quote }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
+  
+  # OpenTelemetry service resource configuration
+  OTEL_SERVICE_NAME: "honeybeepf"
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=monitoring,deployment.environment={{ .Release.Namespace }}"
 
   # Built-in Probe Toggles (High-level)
   BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}

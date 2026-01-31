@@ -2,8 +2,6 @@ prometheus:
   server:
     persistentVolume:
       enabled: false
-      storageClassName: "local-path"
-      size: 5Gi
     retention: "2d"
     resources:
       limits:
@@ -14,15 +12,24 @@ prometheus:
         memory: 512Mi
     service:
       type: ClusterIP
-  
+
+  # Scrape OTel Collector metrics directly (no ServiceMonitor needed)
+  extraScrapeConfigs: |
+    - job_name: 'otel-collector'
+      honor_labels: true
+      scrape_interval: 15s
+      static_configs:
+        - targets:
+            - 'honeybeepf-otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:8889'
+
   alertmanager:
     enabled: false
-  
+
   pushgateway:
     enabled: false
-  
+
   nodeExporter:
     enabled: false
-  
+
   kubeStateMetrics:
     enabled: false

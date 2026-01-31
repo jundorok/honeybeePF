@@ -28,15 +28,20 @@ metrics:
     enabled: false
     interval: 30s
     scrapeTimeout: 10s
-    labels: {}
+    # Required for Prometheus Operator to recognize ServiceMonitor
+    labels:
+      release: prometheus-operator
     namespace: ""
+    # Preserve labels sent from the application (prevents overwriting)
+    honorLabels: true
 
 
 # Data Output
 output:
   # if you want to send data to OpenTelemetry Collector from your application set this values.
+  # Recommended FQDN format: <service>.<namespace>.svc.cluster.local:<port>
   otlp:
-    endpoint: "otel-collector.monitoring.svc:4317"
+    endpoint: "honeybeepf-otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317"
     protocol: "grpc"
 
 

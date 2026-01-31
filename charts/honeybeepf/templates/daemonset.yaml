@@ -37,6 +37,8 @@ spec:
       serviceAccountName: {{ include "honeybeepf.serviceAccountName" . }}
       hostPID: true 
       hostNetwork: true
+      # Required for cluster DNS resolution with hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
 
       {{- with .Values.nodeSelector }}
       nodeSelector:

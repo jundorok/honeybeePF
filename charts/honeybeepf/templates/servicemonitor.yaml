@@ -5,6 +5,7 @@ metadata:
   name: {{ include "honeybeepf.fullname" . }}-metrics
   labels:
     {{- include "honeybeepf.labels" . | nindent 4 }}
+    {{- /* Required for Prometheus Operator to recognize ServiceMonitor */ -}}
     {{- with .Values.metrics.serviceMonitor.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -23,4 +24,8 @@ spec:
       path: {{ .Values.metrics.path | quote }}
       interval: {{ .Values.metrics.serviceMonitor.interval | quote }}
       scrapeTimeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout | quote }}
+      {{- /* Preserve labels sent from the application (prevents overwriting) */ -}}
+      {{- if .Values.metrics.serviceMonitor.honorLabels }}
+      honorLabels: true
+      {{- end }}
 {{- end }}
