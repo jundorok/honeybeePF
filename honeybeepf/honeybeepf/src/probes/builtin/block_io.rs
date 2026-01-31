@@ -63,7 +63,7 @@ impl Probe for BlockIoProbe {
             telemetry::record_block_io_event(
                 type_str,
                 event.bytes as u64,
-                None, // latency는 별도 계산 필요
+                None, // Latency requires separate calculation
                 &device,
             );
         })?;
