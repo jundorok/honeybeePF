@@ -43,7 +43,7 @@ impl Probe for BlockIoProbe {
                 BlockIoEventType::Unknown => "UNKNOWN",
             };
 
-            // 디바이스 이름 생성 (major:minor)
+            // Create device name (major:minor)
             let device = format!("{}:{}", event.dev >> 20, event.dev & 0xFFFFF);
 
             info!(
