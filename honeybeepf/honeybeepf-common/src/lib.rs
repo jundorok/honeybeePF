@@ -30,6 +30,40 @@ unsafe impl aya::Pod for GpuOpenEvent {}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct GpuCloseEvent {
+    pub metadata: EventMetadata,
+    pub gpu_index: i32,
+    pub fd: i32,
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for GpuCloseEvent {}
+
+/// Pending GPU open info (stored between sys_enter_openat and sys_exit_openat)
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct PendingGpuOpen {
+    pub gpu_index: i32,
+    pub flags: i32,
+    pub filename: [u8; 64],
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for PendingGpuOpen {}
+
+/// GPU FD info (stored to track which fds are GPU devices)
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct GpuFdInfo {
+    pub gpu_index: i32,
+    pub _pad: i32,
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for GpuFdInfo {}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct ConnectionEvent {
     pub metadata: EventMetadata,
     pub dest_addr: u32,
