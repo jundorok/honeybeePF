@@ -15,7 +15,7 @@ use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::Resource;
 use std::collections::HashMap;
-use std::sync::{atomic::OnceLock, RwLock};
+use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 
 /// Default OTLP endpoint (FQDN format)
