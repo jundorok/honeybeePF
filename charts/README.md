@@ -12,7 +12,7 @@
 └─────────────────┘                    └──────────────────────┘                    └─────────────────┘
 ```
 
-## Quick Start
+## Quick Start 
 
 ### 1. Add Required Helm Repositories
 
