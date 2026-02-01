@@ -86,4 +86,12 @@ nodeSelector:
 
 metrics:
   enabled: false
+  # The values ​​below are shell values ​​to prevent template errors (do not delete)
+  port: 9090
+  path: /metrics
+  service:
+    enabled: true
+    type: ClusterIP
+    annotations: {}
+    labels: {}
 

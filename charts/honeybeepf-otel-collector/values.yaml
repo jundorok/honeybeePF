@@ -100,7 +100,7 @@ opentelemetry-collector:
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [prometheus, debug]
+          exporters: [prometheus]
         # Explicitly empty unused pipelines
         traces:
           receivers: [otlp]

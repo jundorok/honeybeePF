@@ -11,8 +11,12 @@ data:
   # OTLP Configuration for metrics transmission to OpenTelemetry Collector
   # Priority: Helm values -> env -> code default (FQDN)
   # gRPC endpoint (port 4317)
-  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s" .Values.output.otlp.endpoint | quote }}
-  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
+  {{- $otlpEndpoint := .Values.output.otlp.endpoint -}}
+  {{- if or (hasPrefix "http://" $otlpEndpoint) (hasPrefix "https://" $otlpEndpoint) }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ $otlpEndpoint | quote }}
+  {{- else }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s" $otlpEndpoint | quote }}
+  {{- end }}
   
   # OpenTelemetry service resource configuration
   OTEL_SERVICE_NAME: "honeybeepf"
