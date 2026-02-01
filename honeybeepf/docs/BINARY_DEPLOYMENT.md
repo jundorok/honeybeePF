@@ -38,13 +38,13 @@ cargo xtask build --release --target aarch64-unknown-linux-gnu
 
 ```bash
 # Deploy to remote server (build + scp + install)
-cargo xtask deploy --host user@192.168.1.100 --release
+cargo xtask deploy --host <user>@<your-server> --release
 
 # Install as systemd service and restart
-cargo xtask deploy --host user@192.168.1.100 --release --restart
+cargo xtask deploy --host <user>@<your-server> --release --restart
 
 # Deploy to a specific path
-cargo xtask deploy --host root@server.com --path /opt/honeybeepf/bin/honeybeepf --release
+cargo xtask deploy --host root@<your-server> --path /opt/honeybeepf/bin/honeybeepf --release
 ```
 
 ### Method 2: Manual Deployment
@@ -54,10 +54,10 @@ cargo xtask deploy --host root@server.com --path /opt/honeybeepf/bin/honeybeepf 
 cargo xtask build --release
 
 # 2. Copy binary
-scp target/release/honeybeepf user@server:/tmp/
+scp target/release/honeybeepf <user>@<your-server>:/tmp/
 
 # 3. Install on server
-ssh user@server
+ssh <user>@<your-server>
 sudo mv /tmp/honeybeepf /usr/local/bin/
 sudo chmod +x /usr/local/bin/honeybeepf
 ```
@@ -72,8 +72,8 @@ cargo xtask package --output dist
 ls dist/*.tar.gz
 
 # Transfer and install on server
-scp dist/honeybeepf-*.tar.gz user@server:/tmp/
-ssh user@server "cd /tmp && tar xzf honeybeepf-*.tar.gz && cd honeybeepf-* && sudo ./install.sh"
+scp dist/honeybeepf-*.tar.gz <user>@<your-server>:/tmp/
+ssh <user>@<your-server> "cd /tmp && tar xzf honeybeepf-*.tar.gz && cd honeybeepf-* && sudo ./install.sh"
 ```
 
 ## 🔐 Permission Requirements
@@ -116,7 +116,7 @@ uname -r
 ### Automated Installation
 
 ```bash
-cargo xtask install-service --host user@server
+cargo xtask install-service --host <user>@<your-server>
 ```
 
 ### Manual Installation
@@ -201,56 +201,6 @@ sudo journalctl -u honeybeepf -f
 
 # Run in verbose mode
 sudo /usr/local/bin/honeybeepf --verbose
-```
-
-## 🛠 Troubleshooting
-
-### "Operation not permitted" Error
-
-```bash
-# Solution: Run as root or set capabilities
-sudo /usr/local/bin/honeybeepf
-# or
-sudo setcap 'cap_sys_admin,cap_bpf,cap_perfmon,cap_net_admin+ep' /usr/local/bin/honeybeepf
-```
-
-### "BPF not supported" Error
-
-```bash
-# Check kernel configuration
-cat /boot/config-$(uname -r) | grep BPF
-# CONFIG_BPF=y
-# CONFIG_BPF_SYSCALL=y
-# CONFIG_BPF_JIT=y should be present
-```
-
-### BTF (BPF Type Format) Error
-
-```bash
-# Check BTF support
-ls /sys/kernel/btf/vmlinux
-
-# If BTF is missing, kernel upgrade required (5.4+ recommended)
-```
-
-## 📁 File Locations
-
-| File | Path | Description |
-|------|------|-------------|
-| Binary | `/usr/local/bin/honeybeepf` | Executable |
-| Service | `/etc/systemd/system/honeybeepf.service` | systemd unit |
-| Config | `/etc/honeybeepf/honeybeepf.env` | Environment variables |
-| Logs | `journalctl -u honeybeepf` | systemd journal |
-
-## 🔄 Update
-
-```bash
-# Deploy new version
-cargo xtask deploy --host user@server --release --restart
-
-# Or manually
-scp target/release/honeybeepf user@server:/tmp/
-ssh user@server "sudo mv /tmp/honeybeepf /usr/local/bin/ && sudo systemctl restart honeybeepf"
 ```
 
 ## 🗑 Uninstall
