@@ -3,8 +3,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 # Image configuration including private registry support
-# NOTE: Update repository to your Docker Hub username after PR merge
-# During development, override with: --set image.repository=ttl.sh/your-image --set image.tag=2h
+# Default official image repository
 image:
   repository: "docker.io/dorokrok/honeybeepf"
   tag: "latest"
