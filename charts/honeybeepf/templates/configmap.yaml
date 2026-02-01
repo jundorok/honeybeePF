@@ -20,7 +20,7 @@ data:
   
   # OpenTelemetry service resource configuration
   OTEL_SERVICE_NAME: "honeybeepf"
-  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=monitoring,deployment.environment={{ .Release.Namespace }}"
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace={{ .Release.Namespace }},deployment.environment={{ .Release.Namespace }}"
 
   # Built-in Probe Toggles (High-level)
   BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
