@@ -55,7 +55,7 @@ builtinProbes:
     enabled: true
   network_latency:
     enabled: false
-  gpu_open:
+  gpu_usage:
     enabled: true
   interval: 1000
 
