@@ -3,10 +3,12 @@ nameOverride: ""
 fullnameOverride: ""
 
 # Image configuration including private registry support
+# NOTE: Update repository to your Docker Hub username after PR merge
+# During development, override with: --set image.repository=ttl.sh/your-image --set image.tag=2h
 image:
-  repository: "ttl.sh/honeybeepf-prod"
-  tag: "24h"
-  pullPolicy: Always
+  repository: "jundrok/honeybeepf"
+  tag: "latest"
+  pullPolicy: IfNotPresent
 imagePullSecrets: [] # List for private registry credentials
 
 # Annotations for the pod
