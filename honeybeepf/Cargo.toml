@@ -4,6 +4,7 @@ members = [
     "honeybeepf",
     "honeybeepf-common",
     "honeybeepf-ebpf",
+    "xtask",
 ]
 default-members = ["honeybeepf", "honeybeepf-common"]
 
