@@ -6,7 +6,7 @@ fullnameOverride: ""
 # NOTE: Update repository to your Docker Hub username after PR merge
 # During development, override with: --set image.repository=ttl.sh/your-image --set image.tag=2h
 image:
-  repository: "jundrok/honeybeepf"
+  repository: "dorokrok/honeybeepf"
   tag: "latest"
   pullPolicy: IfNotPresent
 imagePullSecrets: [] # List for private registry credentials
@@ -91,4 +91,5 @@ resources:
 
 # Scheduling
 nodeSelector:
+
   kubernetes.io/os: linux
