@@ -9,6 +9,7 @@ use honeybeepf_common::{EventMetadata, GpuCloseEvent, GpuFdInfo, GpuOpenEvent, P
 
 use crate::probes::HoneyBeeEvent;
 use super::gpu_utils::get_gpu_index;
+use super::syscall_types::{SysEnterClose, SysEnterOpenat, SysExitOpenat};
 
 const MAX_EVENT_SIZE: u32 = 1024 * 1024;
 const MAX_PENDING_OPENS: u32 = 10240;
@@ -34,42 +35,6 @@ pub static PENDING_GPU_OPENS: HashMap<u64, PendingGpuOpen> = HashMap::with_max_e
 /// Map to track GPU file descriptors (key: pid << 32 | fd, value: GpuFdInfo)
 #[map]
 pub static GPU_FD_MAP: HashMap<u64, GpuFdInfo> = HashMap::with_max_entries(MAX_GPU_FDS, 0);
-
-#[repr(C)]
-struct SysEnterOpenat {
-    common_type: u16,
-    common_flags: u8,
-    common_preempt_count: u8,
-    common_pid: i32,
-    __syscall_nr: i32,
-    _pad: i32,
-    dfd: i64,
-    filename: u64,
-    flags: i64,
-    mode: i64,
-}
-
-#[repr(C)]
-struct SysExitOpenat {
-    common_type: u16,
-    common_flags: u8,
-    common_preempt_count: u8,
-    common_pid: i32,
-    __syscall_nr: i32,
-    _pad: i32,
-    ret: i64,
-}
-
-#[repr(C)]
-struct SysEnterClose {
-    common_type: u16,
-    common_flags: u8,
-    common_preempt_count: u8,
-    common_pid: i32,
-    __syscall_nr: i32,
-    _pad: i32,
-    fd: i64,
-}
 
 impl HoneyBeeEvent for GpuOpenEvent {
     fn metadata(&mut self) -> &mut EventMetadata {

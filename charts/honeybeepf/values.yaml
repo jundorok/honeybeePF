@@ -53,9 +53,13 @@ rustLog: "info"
 builtinProbes:
   block_io:
     enabled: false
+<<<<<<< HEAD
   network_latency:
     enabled: true
   gpu_open:
+=======
+  gpu_usage:
+>>>>>>> 080c6e5 (unified commonly used syscall types)
     enabled: true
   interval: 1000
 
