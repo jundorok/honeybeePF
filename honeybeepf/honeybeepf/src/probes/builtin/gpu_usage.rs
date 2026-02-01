@@ -1,5 +1,5 @@
 use anyhow::Result;
-use aya::Bpf;
+use aya::EBpf;
 use honeybeepf_common::{GpuCloseEvent, GpuOpenEvent};
 use log::info;
 use std::fs;
@@ -25,7 +25,7 @@ fn get_gpu_type(filename: &str) -> &'static str {
 pub struct GpuUsageProbe;
 
 impl Probe for GpuUsageProbe {
-    fn attach(&self, bpf: &mut Bpf) -> Result<()> {
+    fn attach(&self, bpf: &mut EBpf) -> Result<()> {
         info!("Attaching GPU usage probes...");
 
         // Attach sys_enter_openat (check if GPU, store pending)
