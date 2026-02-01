@@ -243,7 +243,7 @@ mod tests {
     #[serial]
     fn test_get_otlp_endpoint_default() {
         // Use default value if environment variable is not set
-        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); }
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
         let endpoint = get_otlp_endpoint();
         assert!(endpoint.starts_with("http://"));
         assert!(endpoint.contains("honeybeepf-otel-collector"));
@@ -252,22 +252,22 @@ mod tests {
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_from_env() {
-        unsafe {
-            std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
-        }
+   
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
+        
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, "http://custom:4317");
-        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); }
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
     }
 
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_adds_http_prefix() {
-        unsafe {
-            std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
-        }
+
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
+        
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, "http://collector:4317");
-        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); }
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
     }
 }
