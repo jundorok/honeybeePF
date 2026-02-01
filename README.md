@@ -40,7 +40,7 @@ The agent can be deployed via Helm Charts in Kubernetes environments or as a sta
 ## 5. Tech Stack
 - **Languages:** eBPF, Kernel, Rust  
 - **Infrastructure:** Kubernetes, Helm, OpenTelemetry, Prometheus, Grafana  
-- **Communication:** Discord, GitHub  
+- **Communication:** Discord, GitHub Discussions  
 
 ---
 
@@ -48,19 +48,43 @@ The agent can be deployed via Helm Charts in Kubernetes environments or as a sta
 - **Phase 1:** CI/CD and Observability Setup  
 - **Phase 2:** Core Module Development  
 - **Phase 3:** Monitoring and Testing  
-- **Phase 4:** Release  
+- **Phase 4:** Release & Operator Integrations  
+
+> We track roadmap execution via GitHub Projects and release multi-architecture
+> container images using `publish.sh` once CI pipelines pass.
 
 ---
 
 ## 7. How to Contribute
 - **Issues:** Use GitHub Issues for bug reports or feature requests  
 - **PRs:** Contributions must open PRs  
-- **Guide:** TBU  
+- **Guide:** Follow [`CONTRIBUTING.md`](CONTRIBUTING.md) for coding standards and
+	review expectations  
 
 ---
 
 ## 8. Resources & Links
-- GitHub Repository: [*Link*]
+- GitHub Repository: [github.com/jundorok/honeybeePF](https://github.com/jundorok/honeybeePF)
+- Helm Charts: [`charts/honeybeepf`](charts/honeybeepf)
+- Governance: [`GOVERNANCE.md`](GOVERNANCE.md)
+
+---
+
+## 9. Governance & Community
+- **Code of Conduct:** See [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Report
+	incidents privately to `jun.seo.93@proton.me`.  
+- **Decision Process:** Maintainers document proposals via Issues/Discussions
+	with a 72-hour community review window before landing major changes.  
+- **Meetings:** We host quarterly community syncs announced in GitHub
+	Discussions. Notes are published alongside meeting issues.  
+- **Membership:** Active contributors who review and merge work over two
+	consecutive releases are invited to join the maintainer group.
+
+## 10. Licensing
+- **Source Code:** MIT License (`LICENSE`).  
+- **Documentation:** MIT License unless otherwise noted within the document.  
+- **Third-Party Assets:** Refer to each component's directory for licensing
+	notices.
 
 ---
 
