@@ -62,9 +62,6 @@ kubectl get pods -n monitoring
 
 # Check Services
 kubectl get svc -n monitoring
-
-# Check ServiceMonitor (when using Prometheus Operator)
-kubectl get servicemonitor -n monitoring
 ```
 
 ## Configuration Structure
@@ -79,24 +76,13 @@ kubectl get servicemonitor -n monitoring
 
 > **Note**: honeybeepf Agent does NOT expose metrics directly. All metrics flow through OTel Collector.
 
-### Label Configuration
+### Prometheus Scrape Configuration
 
-For ServiceMonitor to work correctly, the following labels must match:
+This chart uses **annotation-based scraping** (NOT ServiceMonitor).
+Prometheus scrapes the OTel Collector's prometheus exporter on port 8889.
 
-```yaml
-# Service and ServiceMonitor label mapping
-Service.metadata.labels:
-  app.kubernetes.io/name: honeybeepf
-  app.kubernetes.io/instance: <release-name>
-
-ServiceMonitor.spec.selector.matchLabels:
-  app.kubernetes.io/name: honeybeepf
-  app.kubernetes.io/instance: <release-name>
-
-# Required label for Prometheus Operator recognition
-ServiceMonitor.metadata.labels:
-  release: prometheus  # Important!
-```
+> **Note**: If installing in a namespace other than `monitoring`, 
+> update the scrape target in `honeybeepf-prometheus/values.yaml`.
 
 ### OTLP Endpoint Configuration
 
@@ -116,18 +102,12 @@ output:
 
 ## Best Practices Checklist
 
-### ✅ ServiceMonitor Configuration
-
-- [ ] Port names match between ServiceMonitor and Service (e.g., both `prometheus` or `metrics`)
-- [ ] ServiceMonitor's `selector.matchLabels` matches Service's `metadata.labels`
-- [ ] ServiceMonitor has `release: prometheus` label
-- [ ] `endpoints[].honorLabels: true` is set
-
 ### ✅ Helm values.yaml
 
 - [ ] Verify structure for direct install vs dependency install
 - [ ] Check indentation/key names carefully
 - [ ] Use FQDN format for endpoint
+- [ ] Update namespace in endpoint if not using `monitoring`
 
 ### ✅ Rust Code
 
@@ -140,14 +120,11 @@ output:
 ### 1. Targets Not Visible in Prometheus
 
 ```bash
-# Check ServiceMonitor
-kubectl get servicemonitor -n monitoring -o yaml
-
 # Check Endpoints
 kubectl get endpoints -n monitoring
 
 # Check Prometheus targets page
-kubectl port-forward svc/prometheus-server -n monitoring 9090:80
+kubectl port-forward svc/honeybeepf-prometheus-server -n monitoring 9090:80
 # Open http://localhost:9090/targets in browser
 ```
 
@@ -184,7 +161,7 @@ kubectl get servicemonitor -n monitoring -o jsonpath='{.items[*].spec.selector}'
 | `honeybeepf_hbpf_block_io_latency_ns` | Histogram | Block I/O latency (nanoseconds) |
 | `honeybeepf_hbpf_network_latency_ns` | Histogram | Network latency (nanoseconds) |
 | `honeybeepf_hbpf_gpu_open_events_total` | Counter | Number of GPU device open events |
-| `honeybeepf_hbpf_active_probes_total` | Counter | Number of active eBPF probes |
+| `honeybeepf_hbpf_active_probes` | Gauge | Number of currently active eBPF probes |
 
 ## Prometheus Query Examples
 
@@ -199,7 +176,7 @@ rate(honeybeepf_hbpf_block_io_bytes_total[5m])
 sum by (device) (honeybeepf_hbpf_gpu_open_events_total)
 
 # Active probes list
-sum by (probe) (honeybeepf_hbpf_active_probes_total)
+sum by (probe) (honeybeepf_hbpf_active_probes)
 ```
 
 ## Custom Configuration Examples
@@ -225,16 +202,4 @@ builtinProbes:
   gpu_open:
     enabled: true
   interval: 1000
-```
-
-### Use with Prometheus Operator
-
-```yaml
-# charts/honeybeepf/values.yaml
-metrics:
-  serviceMonitor:
-    enabled: true
-    labels:
-      release: prometheus  # Must match Prometheus Operator release name
-    honorLabels: true
 ```

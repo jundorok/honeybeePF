@@ -51,17 +51,17 @@ impl HoneyBeeEngine {
     fn attach_probes(&mut self) -> Result<()> {
         if self.settings.builtin_probes.network_latency.unwrap_or(false) {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
-            telemetry::record_active_probe("network_latency");
+            telemetry::record_active_probe("network_latency", 1); // gauge
         }
 
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
-            telemetry::record_active_probe("block_io");
+            telemetry::record_active_probe("block_io", 1); // gauge
         }
 
         if self.settings.builtin_probes.gpu_open.unwrap_or(false) {
             GpuOpenProbe.attach(&mut self.bpf)?;
-            telemetry::record_active_probe("gpu_open");
+            telemetry::record_active_probe("gpu_open", 1); // gauge
         }
 
         Ok(())

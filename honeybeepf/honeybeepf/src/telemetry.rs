@@ -14,7 +14,8 @@ use opentelemetry::{global, KeyValue};
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::Resource;
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::sync::{atomic::{AtomicU64, Ordering}, OnceLock, RwLock};
 use std::time::Duration;
 
 /// Default OTLP endpoint (FQDN format)
@@ -26,6 +27,14 @@ const METRIC_EXPORT_INTERVAL_SECS: u64 = 30;
 
 /// Global metrics handle
 static METRICS: OnceLock<HoneyBeeMetrics> = OnceLock::new();
+
+/// Global active probes count (for ObservableGauge callback)
+static ACTIVE_PROBES: OnceLock<RwLock<HashMap<String, u64>>> = OnceLock::new();
+
+/// Get or initialize the active probes map
+fn active_probes_map() -> &'static RwLock<HashMap<String, u64>> {
+    ACTIVE_PROBES.get_or_init(|| RwLock::new(HashMap::new()))
+}
 
 /// honeybeepf metrics collection
 /// 
@@ -41,8 +50,7 @@ pub struct HoneyBeeMetrics {
     pub network_latency_ns: Histogram<u64>,
     /// GPU open event counter
     pub gpu_open_events: Counter<u64>,
-    /// Active probes counter
-    pub active_probes: Counter<u64>,
+    // Note: active_probes is registered as ObservableGauge in init_metrics()
 }
 
 impl HoneyBeeMetrics {
@@ -75,11 +83,6 @@ impl HoneyBeeMetrics {
                 .u64_counter("hbpf_gpu_open_events")
                 .with_description("Number of GPU device open events")
                 .with_unit("events")
-                .build(),
-            active_probes: meter
-                .u64_counter("hbpf_active_probes")
-                .with_description("Number of currently active eBPF probes")
-                .with_unit("probes")
                 .build(),
         }
     }
@@ -143,6 +146,25 @@ pub fn init_metrics() -> Result<()> {
     // Meter name is used as prefix only
     let meter = global::meter("honeybeepf");
     
+    // Register ObservableGauge for active probes (async gauge with callback)
+    // This is the correct way to export gauge metrics via OTLP
+    let _active_probes_gauge = meter
+        .u64_observable_gauge("hbpf_active_probes")
+        .with_description("Number of currently active eBPF probes")
+        .with_unit("probes")
+        .with_callback(|observer| {
+            // Read current active probes from global map
+            if let Ok(probes) = active_probes_map().read() {
+                for (probe_name, count) in probes.iter() {
+                    observer.observe(
+                        *count,
+                        &[KeyValue::new("probe", probe_name.clone())],
+                    );
+                }
+            }
+        })
+        .build();
+
     // Initialize global metrics handle
     let _ = METRICS.set(HoneyBeeMetrics::new(&meter));
 
@@ -193,11 +215,13 @@ pub fn record_gpu_open_event(device_path: &str) {
     }
 }
 
-/// Record active probe
-pub fn record_active_probe(probe_name: &str) {
-    if let Some(m) = metrics() {
-        let attrs = [KeyValue::new("probe", probe_name.to_string())];
-        m.active_probes.add(1, &attrs);
+/// Record active probe count
+/// Updates the global active probes map for ObservableGauge callback
+pub fn record_active_probe(probe_name: &str, count: u64) {
+    // Update the global map (ObservableGauge callback reads from this)
+    if let Ok(mut probes) = active_probes_map().write() {
+        probes.insert(probe_name.to_string(), count);
+        info!("Active probe registered: {} = {}", probe_name, count);
     }
 }
 
@@ -213,33 +237,37 @@ pub fn shutdown_metrics() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_get_otlp_endpoint_default() {
         // Use default value if environment variable is not set
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); }
         let endpoint = get_otlp_endpoint();
         assert!(endpoint.starts_with("http://"));
         assert!(endpoint.contains("honeybeepf-otel-collector"));
     }
 
     #[test]
+    #[serial]
     fn test_get_otlp_endpoint_from_env() {
         unsafe {
             std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
         }
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, "http://custom:4317");
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); }
     }
 
     #[test]
+    #[serial]
     fn test_get_otlp_endpoint_adds_http_prefix() {
         unsafe {
             std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
         }
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, "http://collector:4317");
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); }
     }
 }
