@@ -2,6 +2,40 @@
 
 High-performance eBPF-based tooling built in Rust.
 
+## Quick Start
+
+### Pre-built Binary (Recommended)
+
+Download from [GitHub Releases](https://github.com/jundorok/honeybeePF/releases):
+
+```bash
+# Download (x86_64)
+curl -LO https://github.com/jundorok/honeybeePF/releases/latest/download/honeybeepf-linux-x86_64.tar.gz
+tar xzf honeybeepf-linux-x86_64.tar.gz
+cd honeybeepf-x86_64
+
+# Install
+sudo ./install.sh
+
+# Run
+sudo honeybeepf --verbose
+```
+
+### Using xtask (Build from source)
+
+```bash
+# Build release
+cargo xtask build --release
+
+# Deploy to remote server
+cargo xtask deploy --host user@server --release --restart
+
+# Create distribution package
+cargo xtask package --output dist
+```
+
+See [Binary Deployment Guide](docs/BINARY_DEPLOYMENT.md) for detailed instructions.
+
 ## Prerequisites
 
 - Rust toolchains:
