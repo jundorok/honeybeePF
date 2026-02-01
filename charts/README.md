@@ -14,7 +14,15 @@
 
 ## Quick Start
 
-### 1. Update Helm Repository Dependencies
+### 1. Add Required Helm Repositories
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+```
+
+### 2. Update Helm Repository Dependencies
 
 ```bash
 cd charts/honeybeepf-otel-collector
@@ -24,21 +32,21 @@ cd ../honeybeepf-prometheus
 helm dependency update
 ```
 
-### 2. Create Namespace
+### 3. Create Namespace
 
 ```bash
 kubectl create namespace monitoring
 ```
 
-### 3. Sequential Installation
+### 4. Sequential Installation
 
 ```bash
-# 1. Install OpenTelemetry Collector
-helm install honeybeepf-otel-collector ./charts/honeybeepf-otel-collector \
+# 1. Install Prometheus (first, so it's ready to scrape)
+helm install honeybeepf-prometheus ./charts/honeybeepf-prometheus \
   --namespace monitoring
 
-# 2. Install Prometheus
-helm install prometheus ./charts/honeybeepf-prometheus \
+# 2. Install OpenTelemetry Collector
+helm install honeybeepf-otel-collector ./charts/honeybeepf-otel-collector \
   --namespace monitoring
 
 # 3. Install honeybeepf DaemonSet
@@ -68,7 +76,8 @@ kubectl get servicemonitor -n monitoring
 | OTel Collector | 4317 | gRPC | OTLP metrics receiver |
 | OTel Collector | 4318 | HTTP | OTLP HTTP receiver |
 | OTel Collector | 8889 | HTTP | Prometheus exporter |
-| honeybeepf | 9464 | HTTP | Direct metrics exposure |
+
+> **Note**: honeybeepf Agent does NOT expose metrics directly. All metrics flow through OTel Collector.
 
 ### Label Configuration
 
@@ -170,27 +179,27 @@ kubectl get servicemonitor -n monitoring -o jsonpath='{.items[*].spec.selector}'
 
 | Metric Name | Type | Description |
 |-------------|------|-------------|
-| `hbpf_block_io_events_total` | Counter | Number of Block I/O events |
-| `hbpf_block_io_bytes_total` | Counter | Total Block I/O bytes |
-| `hbpf_block_io_latency_ns` | Histogram | Block I/O latency (nanoseconds) |
-| `hbpf_network_latency_ns` | Histogram | Network latency (nanoseconds) |
-| `hbpf_gpu_open_events_total` | Counter | Number of GPU device open events |
-| `hbpf_active_probes_total` | Counter | Number of active eBPF probes |
+| `honeybeepf_hbpf_block_io_events_total` | Counter | Number of Block I/O events |
+| `honeybeepf_hbpf_block_io_bytes_total` | Counter | Total Block I/O bytes |
+| `honeybeepf_hbpf_block_io_latency_ns` | Histogram | Block I/O latency (nanoseconds) |
+| `honeybeepf_hbpf_network_latency_ns` | Histogram | Network latency (nanoseconds) |
+| `honeybeepf_hbpf_gpu_open_events_total` | Counter | Number of GPU device open events |
+| `honeybeepf_hbpf_active_probes_total` | Counter | Number of active eBPF probes |
 
 ## Prometheus Query Examples
 
 ```promql
 # Block I/O events rate (per second)
-rate(hbpf_block_io_events_total[5m])
+rate(honeybeepf_hbpf_block_io_events_total[5m])
 
 # Block I/O throughput (bytes/sec)
-rate(hbpf_block_io_bytes_total[5m])
+rate(honeybeepf_hbpf_block_io_bytes_total[5m])
 
 # GPU open events by device
-sum by (device) (hbpf_gpu_open_events_total)
+sum by (device) (honeybeepf_hbpf_gpu_open_events_total)
 
 # Active probes list
-sum by (probe) (hbpf_active_probes_total)
+sum by (probe) (honeybeepf_hbpf_active_probes_total)
 ```
 
 ## Custom Configuration Examples
