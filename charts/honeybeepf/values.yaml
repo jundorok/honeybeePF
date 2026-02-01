@@ -4,7 +4,7 @@ fullnameOverride: ""
 
 # Image configuration including private registry support
 image:
-  repository: "dorokrok/honeybeepf"
+  repository: "docker.io/dorokrok/honeybeepf"
   tag: "latest"
   pullPolicy: IfNotPresent
 imagePullSecrets: [] # List for private registry credentials
@@ -52,9 +52,9 @@ rustLog: "info"
 # Hybrid Probe Configuration
 builtinProbes:
   block_io:
-    enabled: true
-  network_latency:
     enabled: false
+  network_latency:
+    enabled: true
   gpu_open:
     enabled: true
   interval: 1000
@@ -67,7 +67,7 @@ customProbes:
 # Security Context: Hardened for production
 securityContext:
   privileged: true
-  readOnlyRootFilesystem: true # Added for enhanced security posture
+  readOnlyRootFilesystem: false
   capabilities:
     drop:
       - ALL
@@ -80,12 +80,15 @@ securityContext:
 # Resource limits with robust parsing (quotes)
 resources:
   limits:
-    cpu: "200m"
-    memory: "256Mi"
+    cpu: "1000m"
+    memory: "1Gi"
   requests:
-    cpu: "100m"
-    memory: "128Mi"
+    cpu: "200m"
+    memory: "512Mi"
 
 # Scheduling
 nodeSelector:
   kubernetes.io/os: linux
+
+# Debug mode
+debug: false
