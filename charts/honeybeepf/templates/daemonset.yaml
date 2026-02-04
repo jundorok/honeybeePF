@@ -53,6 +53,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- if .Values.debug }}
+            seLinuxOptions:
+              type: "spc_t"
+            {{- end }}
 
           {{- if .Values.metrics.enabled }}
           ports:
