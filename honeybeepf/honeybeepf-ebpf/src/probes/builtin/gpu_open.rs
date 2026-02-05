@@ -37,7 +37,7 @@ struct SysEnterOpenat {
     mode: i64,
 }
 
-impl HoneyBeeEvent for GpuOpenEvent {
+impl HoneyBeeEvent<TracePointContext> for GpuOpenEvent {
     fn metadata(&mut self) -> &mut EventMetadata {
         &mut self.metadata
     }

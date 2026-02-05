@@ -24,12 +24,12 @@ static NETWORK_EVENTS: RingBuf = RingBuf::with_byte_size(MAX_EVENT_SIZE, 0);
 
 #[tracepoint]
 pub fn honeybeepf(ctx: TracePointContext) -> u32 {
-    emit_event::<ConnectionEvent>(&NETWORK_EVENTS, &ctx)
+    emit_event::<TracePointContext, ConnectionEvent>(&NETWORK_EVENTS, &ctx)
 }
 
 use honeybeepf_common::EventMetadata;
 
-impl HoneyBeeEvent for ConnectionEvent {
+impl HoneyBeeEvent<TracePointContext> for ConnectionEvent {
     fn metadata(&mut self) -> &mut EventMetadata { &mut self.metadata }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {

@@ -17,25 +17,25 @@ pub static BLOCK_IO_EVENTS: RingBuf = RingBuf::with_byte_size(MAX_EVENT_SIZE, 0)
 #[tracepoint]
 pub fn honeybeepf_block_io_start(ctx: TracePointContext) -> u32 {
     info!(&ctx, "[eBPF] block_io_start tracepoint triggered");
-    emit_event::<BlockIoStart>(&BLOCK_IO_EVENTS, &ctx)
+    emit_event::<TracePointContext, BlockIoStart>(&BLOCK_IO_EVENTS, &ctx)
 }
 
 #[tracepoint]
 pub fn honeybeepf_block_io_done(ctx: TracePointContext) -> u32 {
     info!(&ctx, "[eBPF] block_io_done tracepoint triggered");
-    emit_event::<BlockIoDone>(&BLOCK_IO_EVENTS, &ctx)
+    emit_event::<TracePointContext, BlockIoDone>(&BLOCK_IO_EVENTS, &ctx)
 }
 
 #[tracepoint]
 pub fn honeybeepf_block_rq_issue(ctx: TracePointContext) -> u32 {
     info!(&ctx, "[eBPF] block_rq_issue tracepoint triggered (fallback)");
-    emit_event::<BlockIoStart>(&BLOCK_IO_EVENTS, &ctx)
+    emit_event::<TracePointContext, BlockIoStart>(&BLOCK_IO_EVENTS, &ctx)
 }
 
 #[tracepoint]
 pub fn honeybeepf_block_rq_complete(ctx: TracePointContext) -> u32 {
     info!(&ctx, "[eBPF] block_rq_complete tracepoint triggered (fallback)");
-    emit_event::<BlockIoDone>(&BLOCK_IO_EVENTS, &ctx)
+    emit_event::<TracePointContext, BlockIoDone>(&BLOCK_IO_EVENTS, &ctx)
 }
 
 #[repr(C)]
@@ -58,7 +58,7 @@ use honeybeepf_common::{BlockIoEventType, EventMetadata};
 #[repr(transparent)]
 pub struct BlockIoStart(BlockIoEvent);
 
-impl HoneyBeeEvent for BlockIoStart {
+impl HoneyBeeEvent<TracePointContext> for BlockIoStart {
     fn metadata(&mut self) -> &mut EventMetadata { self.0.metadata() }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
@@ -72,7 +72,7 @@ impl HoneyBeeEvent for BlockIoStart {
 #[repr(transparent)]
 pub struct BlockIoDone(BlockIoEvent);
 
-impl HoneyBeeEvent for BlockIoDone {
+impl HoneyBeeEvent<TracePointContext> for BlockIoDone {
     fn metadata(&mut self) -> &mut EventMetadata { self.0.metadata() }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
@@ -83,7 +83,7 @@ impl HoneyBeeEvent for BlockIoDone {
     }
 }
 
-impl HoneyBeeEvent for BlockIoEvent {
+impl HoneyBeeEvent<TracePointContext> for BlockIoEvent {
     fn metadata(&mut self) -> &mut EventMetadata { &mut self.metadata }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
