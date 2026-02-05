@@ -8,9 +8,7 @@ data:
   # Rust Log Level
   RUST_LOG: {{ .Values.rustLog | quote }}
 
-  # OTLP Configuration for metrics transmission to OpenTelemetry Collector
   # Priority: Helm values -> env -> code default (FQDN)
-  # gRPC endpoint (port 4317)
   {{- $otlpEndpoint := .Values.output.otlp.endpoint -}}
   {{- if or (hasPrefix "http://" $otlpEndpoint) (hasPrefix "https://" $otlpEndpoint) }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ $otlpEndpoint | quote }}
@@ -18,15 +16,11 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s" $otlpEndpoint | quote }}
   {{- end }}
   
-  # OpenTelemetry service resource configuration
   OTEL_SERVICE_NAME: "honeybeepf"
   OTEL_RESOURCE_ATTRIBUTES: "service.namespace={{ .Release.Namespace }},deployment.environment={{ .Release.Namespace }}"
-
-  # Built-in Probe Toggles (High-level)
   BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
   BUILTIN_PROBES__NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
   BUILTIN_PROBES__GPU_OPEN: {{ .Values.builtinProbes.gpu_open.enabled | quote }}
-  # Collection Interval (Resource Management Action Item)
   BUILTIN_PROBES__INTERVAL: {{ .Values.builtinProbes.interval | quote }}
 
   # Custom Probe JSON: Serialized for the Aya/Rust agent

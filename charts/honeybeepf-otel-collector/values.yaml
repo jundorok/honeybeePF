@@ -4,8 +4,6 @@ opentelemetry-collector:
   image:
     repository: otel/opentelemetry-collector-contrib
     tag: "0.143.0"
-  
-  # Explicitly disable default ports we don't need
   ports:
     otlp:
       enabled: true
@@ -22,7 +20,6 @@ opentelemetry-collector:
       containerPort: 8889
       servicePort: 8889
       protocol: TCP
-    # Disable all unused ports
     jaeger-compact:
       enabled: false
     jaeger-thrift:
@@ -32,8 +29,7 @@ opentelemetry-collector:
     zipkin:
       enabled: false
     metrics:
-      enabled: false  # Disable internal metrics port 8888
-
+      enabled: false  
   presets:
     logsCollection:
       enabled: false
@@ -58,7 +54,6 @@ opentelemetry-collector:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-      # Explicitly disable default receivers
       jaeger: null
       zipkin: null
       prometheus: null
@@ -95,13 +90,12 @@ opentelemetry-collector:
         logs:
           level: info
         metrics:
-          level: none  # Disable internal metrics to avoid confusion
+          level: none  
       pipelines:
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, batch]
           exporters: [prometheus]
-        # Explicitly empty unused pipelines
         traces:
           receivers: [otlp]
           processors: [memory_limiter, batch]

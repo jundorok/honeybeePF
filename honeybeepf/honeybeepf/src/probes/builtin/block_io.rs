@@ -58,8 +58,6 @@ impl Probe for BlockIoProbe {
                 comm
             );
 
-            // Transport OpenTelemetry Metric
-            // latency_ns is only calculated at DONE event (Implementation required)
             telemetry::record_block_io_event(
                 type_str,
                 event.bytes as u64,

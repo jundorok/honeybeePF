@@ -61,8 +61,6 @@ impl Probe for GpuOpenProbe {
                 filename,
                 event.metadata.cgroup_id,
             );
-
-            // Transport OpenTelemetry Metric
             telemetry::record_gpu_open_event(filename);
         })?;
 
