@@ -44,6 +44,11 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- if .Values.debug }}
+            seLinuxOptions:
+              type: "spc_t"
+            {{- end }}
+
           livenessProbe:
             exec:
               command: ["sh", "-c", "cat /proc/self/status"]

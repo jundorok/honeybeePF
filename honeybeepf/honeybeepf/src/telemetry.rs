@@ -132,7 +132,7 @@ pub fn init_metrics() -> Result<()> {
     
     // This is the correct way to export gauge metrics via OTLP
     let _active_probes_gauge = meter
-        .u64_observable_gauge("hbpf_active_probes")
+        .u64_observable_gauge("active_probes")
         .with_description("Number of currently active eBPF probes")
         .with_unit("probes")
         .with_callback(|observer| {
