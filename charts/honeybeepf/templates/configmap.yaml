@@ -7,6 +7,9 @@ metadata:
 data:
   RUST_LOG: {{ .Values.rustLog | quote }}
   {{- $otlpEndpoint := .Values.output.otlp.endpoint -}}
+  {{- if not $otlpEndpoint -}}
+    {{- $otlpEndpoint = printf "%s-opentelemetry-collector:%v" .Values.output.otlp.collectorReleaseName (.Values.output.otlp.port | default 4317) -}}
+  {{- end -}}
   {{- if or (hasPrefix "http://" $otlpEndpoint) (hasPrefix "https://" $otlpEndpoint) }}
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ $otlpEndpoint | quote }}
   {{- else }}

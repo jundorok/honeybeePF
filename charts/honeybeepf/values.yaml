@@ -15,7 +15,9 @@ podAnnotations: {}
 
 output:
   otlp:
-    endpoint: "honeybeepf-otel-collector-opentelemetry-collector:4317"
+    endpoint: ""
+    collectorReleaseName: "honeybeepf-otel-collector"
+    port: 4317
     protocol: "grpc"
 serviceAccount:
   create: true
