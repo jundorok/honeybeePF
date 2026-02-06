@@ -28,6 +28,9 @@ const METRIC_EXPORT_INTERVAL_SECS: u64 = 30;
 /// Global metrics handle
 static METRICS: OnceLock<HoneyBeeMetrics> = OnceLock::new();
 
+/// Global MeterProvider for graceful shutdown
+static METER_PROVIDER: OnceLock<SdkMeterProvider> = OnceLock::new();
+
 /// Global active probes count (for ObservableGauge callback)
 static ACTIVE_PROBES: OnceLock<RwLock<HashMap<String, u64>>> = OnceLock::new();
 
@@ -125,7 +128,8 @@ pub fn init_metrics() -> Result<()> {
         .with_resource(resource)
         .build();
 
-    global::set_meter_provider(provider);
+    global::set_meter_provider(provider.clone());
+    let _ = METER_PROVIDER.set(provider);
 
     // Meter name is used as prefix only
     let meter = global::meter("honeybeepf");
@@ -203,12 +207,16 @@ pub fn record_active_probe(probe_name: &str, count: u64) {
 }
 
 /// Shutdown OpenTelemetry (graceful shutdown)
-/// Note: OpenTelemetry SDK 0.27 does not expose shutdown_meter_provider
-/// The MeterProvider will be dropped when the process exits
+/// Flushes pending metrics and shuts down the MeterProvider
 pub fn shutdown_metrics() {
     info!("Shutting down OpenTelemetry metrics...");
-    // Graceful shutdown happens automatically when MeterProvider is dropped
-    // For explicit flush, we could store the provider globally and call shutdown()
+    if let Some(provider) = METER_PROVIDER.get() {
+        if let Err(e) = provider.shutdown() {
+            log::warn!("Failed to shutdown MeterProvider: {}", e);
+        } else {
+            info!("OpenTelemetry metrics shutdown complete");
+        }
+    }
 }
 
 #[cfg(test)]

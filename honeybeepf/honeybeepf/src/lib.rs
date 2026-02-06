@@ -49,7 +49,8 @@ impl HoneyBeeEngine {
     fn attach_probes(&mut self) -> Result<()> {
         if self.settings.builtin_probes.network_latency.unwrap_or(false) {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
-            telemetry::record_active_probe("network_latency", 1); 
+            // Note: network_latency probe currently logs connection events only,
+            // latency measurement not yet implemented
         }
 
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
