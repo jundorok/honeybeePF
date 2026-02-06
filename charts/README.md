@@ -157,7 +157,7 @@ kubectl logs -n monitoring -l app.kubernetes.io/name=honeybeepf
 
 # Check OTel Collector metrics directly
 kubectl port-forward svc/honeybeepf-otel-collector-opentelemetry-collector -n monitoring 8889:8889
-curl http://localhost:8889/metrics | grep hbpf_
+curl http://localhost:8889/metrics | grep honeybeepf_
 ```
 
 ---
