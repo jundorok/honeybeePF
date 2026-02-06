@@ -55,6 +55,7 @@ impl HoneyBeeEngine {
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
             telemetry::record_active_probe("block_io", 1); 
+        }
 
         if self.settings.builtin_probes.gpu_open.unwrap_or(false) {
             GpuOpenProbe.attach(&mut self.bpf)?;

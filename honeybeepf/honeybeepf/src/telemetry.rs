@@ -20,7 +20,7 @@ use std::time::Duration;
 
 /// Default OTLP endpoint (FQDN format)
 /// Can be overridden via Helm values
-const DEFAULT_OTLP_ENDPOINT: &str = "http://honeybeepf-otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317";
+const DEFAULT_OTLP_ENDPOINT: &str = "http://honeybeepf-otel-collector-opentelemetry-collector:4317";
 
 /// Metric export interval in seconds
 const METRIC_EXPORT_INTERVAL_SECS: u64 = 30;
@@ -53,27 +53,27 @@ impl HoneyBeeMetrics {
         // Prometheus automatically adds _total suffix
         Self {
             block_io_events: meter
-                .u64_counter("hbpf_block_io_events")
+                .u64_counter("block_io_events")
                 .with_description("Number of block I/O events")
                 .with_unit("events")
                 .build(),
             block_io_bytes: meter
-                .u64_counter("hbpf_block_io_bytes")
+                .u64_counter("block_io_bytes")
                 .with_description("Total bytes of block I/O operations")
                 .with_unit("bytes")
                 .build(),
             block_io_latency_ns: meter
-                .u64_histogram("hbpf_block_io_latency_ns")
+                .u64_histogram("block_io_latency_ns")
                 .with_description("Block I/O operation latency in nanoseconds")
                 .with_unit("ns")
                 .build(),
             network_latency_ns: meter
-                .u64_histogram("hbpf_network_latency_ns")
+                .u64_histogram("network_latency_ns")
                 .with_description("Network operation latency in nanoseconds")
                 .with_unit("ns")
                 .build(),
             gpu_open_events: meter
-                .u64_counter("hbpf_gpu_open_events")
+                .u64_counter("gpu_open_events")
                 .with_description("Number of GPU device open events")
                 .with_unit("events")
                 .build(),
@@ -117,7 +117,6 @@ pub fn init_metrics() -> Result<()> {
 
     let resource = Resource::new(vec![
         KeyValue::new("service.name", "honeybeepf"),
-        KeyValue::new("service.namespace", "monitoring"),
         KeyValue::new("telemetry.sdk.language", "rust"),
     ]);
 

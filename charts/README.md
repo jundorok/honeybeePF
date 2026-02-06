@@ -1,20 +1,31 @@
-# HoneybeePF Monitoring Pipeline Installation Guide
+# HoneybeePF Pipeline Installation Guide
 
 ## Architecture Overview
 
 ```
-┌─────────────────┐     gRPC(4317)     ┌──────────────────────┐    scrape(8889)    ┌─────────────────┐
-│   honeybeepf    │ ─────────────────► │  OTel Collector      │ ◄───────────────── │   Prometheus    │
-│   (DaemonSet)   │                    │  (Deployment)        │                    │   (Server)      │
-│                 │                    │                      │                    │                 │
-│  eBPF metrics   │                    │  OTLP → Prometheus   │                    │  hbpf_* metrics │
-│  collect & send │                    │  Exporter            │                    │  store & query  │
-└─────────────────┘                    └──────────────────────┘                    └─────────────────┘
+┌─────────────────┐      gRPC(4317)     ┌──────────────────────┐    scrape(8889)    ┌─────────────────┐
+│   honeybeepf    │ ─────────────────►  │  OTel Collector      │ ◄───────────────── │   Prometheus    │
+│   (DaemonSet)   │                     │  (Deployment)        │                    │   (Server)      │
+│                 │                     │                      │                    │                 │
+│  eBPF metrics   │                     │  OTLP → Prometheus   │                    │  hbpf_* metrics │
+│  collect & send │                     │  Exporter            │                    │  store & query  │
+└─────────────────┘                     └──────────────────────┘                    └─────────────────┘
 ```
 
-## Quick Start 
+## Installation Modes
 
-### 1. Add Required Helm Repositories
+1.  **Kubernetes Mode (Recommended):** Full pipeline deployment using Helm.
+2.  **Standalone Mode:** Run binary directly on Linux host (requires external or local OTel Collector).
+
+---
+
+## 1. Kubernetes Mode Installation (Helm)
+
+### Prerequisites
+* Kubernetes Cluster (v1.23+)
+* Helm 3+ installed
+
+### Step 1. Add Required Helm Repositories
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -22,7 +33,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 ```
 
-### 2. Update Helm Repository Dependencies
+### Step 2. Update Helm Repository Dependencies
 
 ```bash
 cd charts/honeybeepf-otel-collector
@@ -32,13 +43,13 @@ cd ../honeybeepf-prometheus
 helm dependency update
 ```
 
-### 3. Create Namespace
+### Step 3. Create Namespace
 
 ```bash
 kubectl create namespace monitoring
 ```
 
-### 4. Sequential Installation
+### Step 4. Sequential Installation
 
 ```bash
 # 1. Install Prometheus (first, so it's ready to scrape)
@@ -54,7 +65,7 @@ helm install honeybeepf ./charts/honeybeepf \
   --namespace monitoring
 ```
 
-### 4. Verify Installation
+### Step 5. Verify Installation
 
 ```bash
 # Check Pod status
@@ -64,7 +75,41 @@ kubectl get pods -n monitoring
 kubectl get svc -n monitoring
 ```
 
-## Configuration Structure
+---
+
+## 2. Standalone Mode Installation (Binary)
+
+For bare-metal servers, VMs, or local development without Kubernetes.
+
+### Prerequisites
+* Linux Kernel 5.x+ (BTF support required)
+* Root privileges (`sudo`)
+* Local or Remote OTel Collector (The agent needs an endpoint to push metrics)
+
+### Step 1. Download & Run
+
+```bash
+# 1. Download latest binary
+
+# 2. Set Environment Variables (Equivalent to values.yaml)
+
+# 3. Run (Must be root)
+
+```
+
+### Step 2. How to check Metrics? (Standalone)
+
+Since the agent pushes metrics via OTLP, you must have an OTel Collector running.
+
+**Option A: Run a local Collector (Docker)**
+
+
+**Option B: Use Remote Collector**
+
+
+---
+
+## Configuration Reference
 
 ### Port Configuration
 
@@ -76,48 +121,21 @@ kubectl get svc -n monitoring
 
 > **Note**: honeybeepf Agent does NOT expose metrics directly. All metrics flow through OTel Collector.
 
-### Prometheus Scrape Configuration
+### Configuration Mapping Table
 
-This chart uses **annotation-based scraping** (NOT ServiceMonitor).
-Prometheus scrapes the OTel Collector's prometheus exporter on port 8889.
+| Feature | Helm Value (`values.yaml`) | Environment Variable (Binary) |
+| :--- | :--- | :--- |
+| **Log Level** | `rustLog` | `RUST_LOG` |
+| **OTLP Endpoint** | `output.otlp.endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` |
+| **Service Name** | (Internal template) | `OTEL_SERVICE_NAME` |
+| **Block I/O Probe** | `builtinProbes.block_io.enabled` | `BUILTIN_PROBES__BLOCK_IO` |
+| **Network Probe** | `builtinProbes.network_latency.enabled` | `BUILTIN_PROBES__NETWORK_LATENCY` |
 
-> **Note**: If installing in a namespace other than `monitoring`, 
-> update the scrape target in `honeybeepf-prometheus/values.yaml`.
-
-### OTLP Endpoint Configuration
-
-Priority:
-1. **Helm values** (recommended)
-2. Environment variables
-3. Code default value
-
-```yaml
-# values.yaml
-output:
-  otlp:
-    # FQDN format recommended
-    endpoint: "honeybeepf-otel-collector-opentelemetry-collector.monitoring.svc.cluster.local:4317"
-    protocol: "grpc"
-```
-
-## Best Practices Checklist
-
-### ✅ Helm values.yaml
-
-- [ ] Verify structure for direct install vs dependency install
-- [ ] Check indentation/key names carefully
-- [ ] Use FQDN format for endpoint
-- [ ] Update namespace in endpoint if not using `monitoring`
-
-### ✅ Rust Code
-
-- [ ] Do NOT add `_total` suffix to Counter names (Prometheus adds it automatically)
-- [ ] Log OTLP endpoint at startup
-- [ ] Implement graceful shutdown
+---
 
 ## Troubleshooting
 
-### 1. Targets Not Visible in Prometheus
+### 1. Targets Not Visible in Prometheus (K8s)
 
 ```bash
 # Check Endpoints
@@ -142,15 +160,7 @@ kubectl port-forward svc/honeybeepf-otel-collector-opentelemetry-collector -n mo
 curl http://localhost:8889/metrics | grep hbpf_
 ```
 
-### 3. Label Mismatch Check
-
-```bash
-# Check Service labels
-kubectl get svc -n monitoring -o jsonpath='{.items[*].metadata.labels}'
-
-# Check ServiceMonitor selector
-kubectl get servicemonitor -n monitoring -o jsonpath='{.items[*].spec.selector}'
-```
+---
 
 ## Metrics List
 
@@ -162,44 +172,3 @@ kubectl get servicemonitor -n monitoring -o jsonpath='{.items[*].spec.selector}'
 | `honeybeepf_hbpf_network_latency_ns` | Histogram | Network latency (nanoseconds) |
 | `honeybeepf_hbpf_gpu_open_events_total` | Counter | Number of GPU device open events |
 | `honeybeepf_hbpf_active_probes` | Gauge | Number of currently active eBPF probes |
-
-## Prometheus Query Examples
-
-```promql
-# Block I/O events rate (per second)
-rate(honeybeepf_hbpf_block_io_events_total[5m])
-
-# Block I/O throughput (bytes/sec)
-rate(honeybeepf_hbpf_block_io_bytes_total[5m])
-
-# GPU open events by device
-sum by (device) (honeybeepf_hbpf_gpu_open_events_total)
-
-# Active probes list
-sum by (probe) (honeybeepf_hbpf_active_probes)
-```
-
-## Custom Configuration Examples
-
-### Change OTel Collector Endpoint
-
-```yaml
-# charts/honeybeepf/values.yaml
-output:
-  otlp:
-    endpoint: "my-custom-collector.default.svc.cluster.local:4317"
-```
-
-### Enable Specific Probes Only
-
-```yaml
-# charts/honeybeepf/values.yaml
-builtinProbes:
-  block_io:
-    enabled: true
-  network_latency:
-    enabled: false
-  gpu_open:
-    enabled: true
-  interval: 1000
-```

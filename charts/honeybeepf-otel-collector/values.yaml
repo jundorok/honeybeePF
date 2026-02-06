@@ -113,7 +113,7 @@ opentelemetry-collector:
       prometheus.io/port: "8889"
       prometheus.io/path: "/metrics"
 
-  # Disabled - using extraScrapeConfigs in Prometheus instead
+  # ServiceMonitor is disabled because we use annotation-based scraping defined above.
   serviceMonitor:
     enabled: false
 

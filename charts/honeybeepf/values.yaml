@@ -14,10 +14,6 @@ podAnnotations: {}
 # ServiceMonitor is NOT used - this chart uses annotation-based scraping.
 
 output:
-  # Recommended FQDN format: <service>.<namespace>.svc.cluster.local:<port>
-  # NOTE: Default namespace is 'monitoring'. If using a different namespace,
-  # update the endpoint below (e.g., replace 'monitoring' with your namespace).
-  # You can specify with or without http:// prefix (template handles it automatically)
   otlp:
     endpoint: "honeybeepf-otel-collector-opentelemetry-collector:4317"
     protocol: "grpc"
@@ -65,14 +61,4 @@ resources:
 nodeSelector:
   kubernetes.io/os: linux
 
-metrics:
-  enabled: false
-  # The values ​​below are shell values ​​to prevent template errors (do not delete)
-  port: 9090
-  path: /metrics
-  service:
-    enabled: true
-    type: ClusterIP
-    annotations: {}
-    labels: {}
 
