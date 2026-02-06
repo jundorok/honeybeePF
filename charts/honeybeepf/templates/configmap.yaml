@@ -13,7 +13,6 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s" $otlpEndpoint | quote }}
   {{- end }}
   OTEL_SERVICE_NAME: "honeybeepf"
-  OTEL_RESOURCE_ATTRIBUTES: "service.namespace={{ .Release.Namespace }},deployment.environment={{ .Release.Namespace }}"
   BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
   BUILTIN_PROBES__NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
   BUILTIN_PROBES__GPU_OPEN: {{ .Values.builtinProbes.gpu_open.enabled | quote }}

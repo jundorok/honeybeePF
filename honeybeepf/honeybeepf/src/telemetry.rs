@@ -115,10 +115,10 @@ pub fn init_metrics() -> Result<()> {
         .with_interval(Duration::from_secs(METRIC_EXPORT_INTERVAL_SECS))
         .build();
 
-    let resource = Resource::new(vec![
+    let resource = Resource::default().merge(&Resource::new(vec![
         KeyValue::new("service.name", "honeybeepf"),
         KeyValue::new("telemetry.sdk.language", "rust"),
-    ]);
+    ]));
 
     let provider = SdkMeterProvider::builder()
         .with_reader(reader)
