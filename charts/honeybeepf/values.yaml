@@ -52,12 +52,16 @@ rustLog: "info"
 # Hybrid Probe Configuration
 builtinProbes:
   block_io:
+<<<<<<< HEAD
     enabled: false
 <<<<<<< HEAD
   network_latency:
     enabled: true
   gpu_open:
 =======
+=======
+    enabled: true
+>>>>>>> bc26a7b (test)
   gpu_usage:
 >>>>>>> 080c6e5 (unified commonly used syscall types)
     enabled: true
