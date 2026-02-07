@@ -80,7 +80,7 @@ unsafe impl aya::Pod for ConnectionEvent {}
 pub struct CommonConfig {
     pub probe_block_io: u8,
     pub probe_network_latency: u8,
-    pub probe_gpu_open: u8,
+    pub probe_gpu_usage: u8,
     pub probe_llm: u8,
     pub probe_interval: u32,
 }
