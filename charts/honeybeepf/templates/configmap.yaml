@@ -16,6 +16,12 @@ data:
   BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
   BUILTIN_PROBES__NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
   BUILTIN_PROBES__GPU_USAGE: {{ .Values.builtinProbes.gpu_usage.enabled | quote }}
+  BUILTIN_PROBES__LLM: {{ .Values.builtinProbes.llm.enabled | quote }}
+  BUILTIN_PROBES__EXTRACT_TOKENS: {{ .Values.builtinProbes.llm.extract_tokens | quote }}
+  {{- if .Values.builtinProbes.llm.providers }}
+  # LLM Providers Configuration
+  LLM_PROVIDERS_CONFIG: {{ dict "providers" .Values.builtinProbes.llm.providers | toJson | quote }}
+  {{- end }}
   # Collection Interval (Resource Management Action Item)
   BUILTIN_PROBES__INTERVAL: {{ .Values.builtinProbes.interval | quote }}
 

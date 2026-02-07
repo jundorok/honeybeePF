@@ -3,6 +3,9 @@ use anyhow::Result;
 use aya::Ebpf; // Bpf → Ebpf
 use aya_log::EbpfLogger; // BpfLogger → EbpfLogger
 use log::{info, warn};
+use std::collections::HashSet;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 use tokio::signal;
 
 use crate::settings::Settings;
@@ -12,6 +15,12 @@ use crate::probes::{
     Probe,
     builtin::{block_io::BlockIoProbe, gpu_usage::GpuUsageProbe, network::NetworkLatencyProbe},
 };
+use crate::probes::builtin::llm::{
+    attach_new_targets_for_pids, discovery, setup_exec_watch, ExecNotify, ExecPidQueue, LlmProbe,
+};
+use crate::probes::builtin::network::NetworkLatencyProbe;
+use crate::probes::{request_shutdown, shutdown_flag};
+
 
 pub struct HoneyBeeEngine {
     pub settings: Settings,
@@ -31,9 +40,58 @@ impl HoneyBeeEngine {
     pub async fn run(mut self) -> Result<()> {
         self.attach_probes()?;
 
-        info!("Monitoring active. Press Ctrl-C to exit.");
-        signal::ctrl_c().await?;
+        // Start LLM dynamic discovery if enabled
+        if self.settings.builtin_probes.llm.unwrap_or(false) {
+            let (queue, notify) = setup_exec_watch(&mut self.bpf)?;
+            self.run_llm_discovery(queue, notify).await?;
+        } else {
+            info!("Monitoring active. Press Ctrl-C to exit.");
+            signal::ctrl_c().await?;
+        }
+
+        request_shutdown();
         info!("Exiting...");
+        Ok(())
+    }
+
+    /// Run the LLM discovery loop that monitors for new processes and attaches SSL probes.
+    async fn run_llm_discovery(
+        &mut self,
+        queue: ExecPidQueue,
+        notify: ExecNotify,
+    ) -> Result<()> {
+        const BATCH_WAIT_MS: u64 = 50;
+
+        // Seed with initial targets to avoid duplicate attachments
+        let mut known_targets: HashSet<String> = discovery::find_all_targets().unwrap_or_default();
+        let shutdown = shutdown_flag();
+
+        info!("LLM discovery active. Press Ctrl-C to exit.");
+
+        loop {
+            tokio::select! {
+                _ = signal::ctrl_c() => break,
+                _ = notify.notified() => {
+                    // Brief delay to batch rapid exec events
+                    tokio::time::sleep(Duration::from_millis(BATCH_WAIT_MS)).await;
+
+                    let pids: Vec<u32> = {
+                        let mut q = queue.lock().unwrap_or_else(|e| e.into_inner());
+                        q.drain(..).collect()
+                    };
+
+                    if !pids.is_empty() {
+                        if let Err(e) = attach_new_targets_for_pids(&mut self.bpf, &mut known_targets, &pids) {
+                            warn!("LLM re-discovery error: {}", e);
+                        }
+                    }
+                }
+            }
+
+            if shutdown.load(Ordering::Relaxed) {
+                break;
+            }
+        }
 
         Ok(())
     }
@@ -54,6 +112,11 @@ impl HoneyBeeEngine {
 
         if self.settings.builtin_probes.gpu_usage.unwrap_or(false) {
             GpuUsageProbe.attach(&mut self.bpf)?;
+        }
+
+        if self.settings.builtin_probes.llm.unwrap_or(false) {
+            let extract_tokens = self.settings.builtin_probes.extract_tokens.unwrap_or(true);
+            LlmProbe { extract_tokens }.attach(&mut self.bpf)?;
         }
 
         Ok(())

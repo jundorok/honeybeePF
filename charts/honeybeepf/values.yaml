@@ -57,6 +57,12 @@ builtinProbes:
     enabled: false
   gpu_usage:
     enabled: false
+  llm:
+    enabled: false
+    # Set to false for lightweight latency-only monitoring (skip token extraction)
+    extract_tokens: true
+    # Custom providers config (optional). Built-in: OpenAI, Anthropic, Gemini
+    providers: []
   interval: 1000
 
 customProbes:
