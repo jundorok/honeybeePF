@@ -2,15 +2,8 @@ use anyhow::Result;
 use aya::Ebpf;
 use honeybeepf_common::{GpuCloseEvent, GpuOpenEvent};
 use log::info;
-use std::fs;
 
 use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointConfig};
-
-fn get_process_name(pid: u32) -> String {
-    fs::read_to_string(format!("/proc/{}/comm", pid))
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|_| "<unknown>".to_string())
-}
 
 fn get_gpu_type(filename: &str) -> &'static str {
     if filename.starts_with("/dev/nvidia") {
@@ -60,7 +53,9 @@ impl Probe for GpuUsageProbe {
 
         // Handle GPU open events
         spawn_ringbuf_handler(bpf, "GPU_OPEN_EVENTS", |event: GpuOpenEvent| {
-            let comm = get_process_name(event.metadata.pid);
+            let comm = std::str::from_utf8(&event.comm)
+                .unwrap_or("<invalid>")
+                .trim_matches(char::from(0));
             let filename = std::str::from_utf8(&event.filename)
                 .unwrap_or("<invalid>")
                 .trim_matches(char::from(0));
@@ -80,7 +75,9 @@ impl Probe for GpuUsageProbe {
 
         // Handle GPU close events
         spawn_ringbuf_handler(bpf, "GPU_CLOSE_EVENTS", |event: GpuCloseEvent| {
-            let comm = get_process_name(event.metadata.pid);
+            let comm = std::str::from_utf8(&event.comm)
+                .unwrap_or("<invalid>")
+                .trim_matches(char::from(0));
 
             info!(
                 "GPU_CLOSE pid={} comm={} gpu_index={} fd={} cgroup_id={}",

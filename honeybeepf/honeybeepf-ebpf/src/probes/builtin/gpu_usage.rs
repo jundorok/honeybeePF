@@ -1,6 +1,6 @@
 use aya_ebpf::{
     EbpfContext,
-    helpers::bpf_probe_read_user_str_bytes,
+    helpers::{bpf_get_current_comm, bpf_probe_read_user_str_bytes},
     macros::{map, tracepoint},
     maps::{HashMap, RingBuf},
     programs::TracePointContext,
@@ -167,7 +167,7 @@ fn try_gpu_open_exit(ctx: &TracePointContext) -> Result<(), u32> {
         event.gpu_index = pending.gpu_index;
         event.fd = fd as i32;
         event.flags = pending.flags;
-        event.comm = [0u8; 16];
+        event.comm = bpf_get_current_comm().unwrap_or([0u8; 16]);
         event.filename = pending.filename;
 
         slot.submit(0);
@@ -222,6 +222,7 @@ fn try_gpu_close(ctx: &TracePointContext) -> Result<(), u32> {
 
         event.gpu_index = gpu_index;
         event.fd = fd as i32;
+        event.comm = bpf_get_current_comm().unwrap_or([0u8; 16]);
 
         slot.submit(0);
     }

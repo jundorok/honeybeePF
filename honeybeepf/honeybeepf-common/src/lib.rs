@@ -34,6 +34,7 @@ pub struct GpuCloseEvent {
     pub metadata: EventMetadata,
     pub gpu_index: i32,
     pub fd: i32,
+    pub comm: [u8; 16],
 }
 
 #[cfg(feature = "user")]
