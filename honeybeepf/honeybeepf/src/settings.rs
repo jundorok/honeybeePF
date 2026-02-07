@@ -9,6 +9,8 @@ pub struct BuiltinProbes {
     pub block_io: Option<bool>,
     pub network_latency: Option<bool>,
     pub gpu_open: Option<bool>,
+    pub llm: Option<bool>,
+    pub extract_tokens: Option<bool>,
     pub interval: Option<u32>,
 }
 
@@ -40,6 +42,7 @@ impl Settings {
         let probe_block_io = self.builtin_probes.block_io.unwrap_or(false);
         let probe_network_latency = self.builtin_probes.network_latency.unwrap_or(false);
         let probe_gpu_open = self.builtin_probes.gpu_open.unwrap_or(false);
+        let probe_llm = self.builtin_probes.llm.unwrap_or(false);
         // Use a sensible non-zero default interval (in seconds) when not configured
         let probe_interval = self
             .builtin_probes
@@ -50,6 +53,7 @@ impl Settings {
             probe_block_io: probe_block_io as u8,
             probe_network_latency: probe_network_latency as u8,
             probe_gpu_open: probe_gpu_open as u8,
+            probe_llm: probe_llm as u8,
             probe_interval: probe_interval as u32,
         }
     }
@@ -86,9 +90,11 @@ mod tests {
             otel_exporter_otlp_protocol: None,
             builtin_probes: BuiltinProbes {
                 block_io: Some(true),
-                network_latency: None, // Should default to false (0)
-                gpu_open: None,        // Should default to false
-                interval: None,        // Should default to constant
+                network_latency: None,   // Should default to false (0)
+                gpu_open: None,          // Should default to false
+                llm: None,               // Should default to false
+                extract_tokens: None,    // Not used in CommonConfig
+                interval: None,          // Should default to constant
             },
             custom_probe_config: None,
         };
@@ -97,6 +103,7 @@ mod tests {
 
         assert_eq!(common.probe_block_io, 1);
         assert_eq!(common.probe_network_latency, 0);
+        assert_eq!(common.probe_llm, 0);
         assert_eq!(common.probe_interval, DEFAULT_PROBE_INTERVAL_SECONDS);
     }
 }
