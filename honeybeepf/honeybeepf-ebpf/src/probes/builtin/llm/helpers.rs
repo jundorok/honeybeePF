@@ -51,10 +51,13 @@ impl LlmEventExt for LlmEvent {
         let tid = get_current_tid();
         let (start_ts, buf_addr, len_ptr) = Session::get_info(tid);
 
-        // Initialize metadata directly to avoid circular dependency with HoneyBeeEvent trait.
+        // Initialize metadata inline. LlmEvent uses a custom capture pattern with RetProbeContext
+        // rather than the HoneyBeeEvent trait (which uses TracePointContext/ProbeContext).
         let pid_tgid = bpf_get_current_pid_tgid();
         self.metadata.pid = (pid_tgid >> 32) as u32;
-        self.metadata._pad = pid_tgid as u32; // tid for userspace per-thread keying
+        // Store tid in _pad for userspace per-thread stream correlation. EventMetadata is shared
+        // across all event types, so we reuse the padding field rather than adding a new field.
+        self.metadata._pad = pid_tgid as u32;
         self.metadata.timestamp = unsafe { bpf_ktime_get_ns() };
         self.metadata.cgroup_id = unsafe { aya_ebpf::helpers::bpf_get_current_cgroup_id() };
 
@@ -63,6 +66,9 @@ impl LlmEventExt for LlmEvent {
         self.latency_ns = if start_ts > 0 { self.metadata.timestamp - start_ts } else { 0 };
 
         let ret: i64 = ctx.ret().ok_or(1u32)?;
+        // Filter out errors (ret < 0) and zero-byte results (ret == 0).
+        // For SSL_read, ret == 0 indicates clean shutdown - no data to capture.
+        // For LLM monitoring, we only care about actual data transfers.
         if ret <= 0 { return Err(1); }
 
         self.len = if let Some(lp) = len_ptr {
@@ -90,7 +96,7 @@ impl LlmEventExt for LlmEvent {
 
         self.comm = bpf_get_current_comm().unwrap_or([0; 16]);
 
-        Session::clear(tid);
+        // Session cleanup is handled by the caller (emit_llm_event) for consistency
         Ok(())
     }
 }
