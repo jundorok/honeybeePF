@@ -1,11 +1,10 @@
 pub mod settings;
+use std::{collections::HashSet, sync::atomic::Ordering, time::Duration};
+
 use anyhow::Result;
 use aya::Ebpf; // Bpf → Ebpf
 use aya_log::EbpfLogger; // BpfLogger → EbpfLogger
 use log::{info, warn};
-use std::collections::HashSet;
-use std::sync::atomic::Ordering;
-use std::time::Duration;
 use tokio::signal;
 
 use crate::settings::Settings;
@@ -13,14 +12,17 @@ use crate::settings::Settings;
 pub mod probes;
 use crate::probes::{
     Probe,
-    builtin::{block_io::BlockIoProbe, gpu_usage::GpuUsageProbe, network::NetworkLatencyProbe},
+    builtin::{
+        block_io::BlockIoProbe,
+        gpu_usage::GpuUsageProbe,
+        llm::{
+            ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
+            setup_exec_watch,
+        },
+        network::NetworkLatencyProbe,
+    },
+    request_shutdown, shutdown_flag,
 };
-use crate::probes::builtin::llm::{
-    attach_new_targets_for_pids, discovery, setup_exec_watch, ExecNotify, ExecPidQueue, LlmProbe,
-};
-use crate::probes::builtin::network::NetworkLatencyProbe;
-use crate::probes::{request_shutdown, shutdown_flag};
-
 
 pub struct HoneyBeeEngine {
     pub settings: Settings,
@@ -55,11 +57,7 @@ impl HoneyBeeEngine {
     }
 
     /// Run the LLM discovery loop that monitors for new processes and attaches SSL probes.
-    async fn run_llm_discovery(
-        &mut self,
-        queue: ExecPidQueue,
-        notify: ExecNotify,
-    ) -> Result<()> {
+    async fn run_llm_discovery(&mut self, queue: ExecPidQueue, notify: ExecNotify) -> Result<()> {
         const BATCH_WAIT_MS: u64 = 50;
 
         // Seed with initial targets to avoid duplicate attachments
@@ -80,11 +78,10 @@ impl HoneyBeeEngine {
                         q.drain(..).collect()
                     };
 
-                    if !pids.is_empty() {
-                        if let Err(e) = attach_new_targets_for_pids(&mut self.bpf, &mut known_targets, &pids) {
+                    if !pids.is_empty()
+                        && let Err(e) = attach_new_targets_for_pids(&mut self.bpf, &mut known_targets, &pids) {
                             warn!("LLM re-discovery error: {}", e);
                         }
-                    }
                 }
             }
 

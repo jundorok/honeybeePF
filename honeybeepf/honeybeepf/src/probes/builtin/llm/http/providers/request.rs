@@ -1,4 +1,5 @@
 use serde_json::Value;
+
 use super::config::RequestExtractorType;
 
 /// Trait for extracting text from request JSON
@@ -86,8 +87,9 @@ impl RequestExtractor for NoOpExtractor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_messages_extractor() {

@@ -1,6 +1,6 @@
+pub use honeybeepf_common::LlmDirection;
 use serde::Deserialize;
 use serde_json::Value;
-pub use honeybeepf_common::LlmDirection;
 
 /// Parsed usage info from an LLM response
 pub struct UsageInfo {

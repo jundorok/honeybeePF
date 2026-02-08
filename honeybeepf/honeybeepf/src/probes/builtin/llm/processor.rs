@@ -1,18 +1,22 @@
 use std::time::Instant;
+
 use log::{info, warn};
-use crate::probes::builtin::llm::types::LlmDirection;
-use crate::probes::builtin::llm::http::{self, ProtocolParser};
+
+use crate::probes::builtin::llm::{
+    http::{self, ProtocolParser},
+    types::LlmDirection,
+};
 
 // Buffer size constants
-const INITIAL_BUFFER_CAPACITY: usize = 8 * 1024;         // 8KB initial allocation
-const MAX_REQUEST_BUFFER_SIZE: usize = 8 * 1024 * 1024;  // 8MB max for request (images, large context)
+const INITIAL_BUFFER_CAPACITY: usize = 8 * 1024; // 8KB initial allocation
+const MAX_REQUEST_BUFFER_SIZE: usize = 8 * 1024 * 1024; // 8MB max for request (images, large context)
 const MAX_RESPONSE_BUFFER_SIZE: usize = 16 * 1024 * 1024; // 16MB max for response (streaming)
-const DETECTION_BUFFER_THRESHOLD: usize = 4096;           // Give up detection after 4KB
+const DETECTION_BUFFER_THRESHOLD: usize = 4096; // Give up detection after 4KB
 
 /// State definition: lifecycle of an LLM connection
 enum ProcessorState {
     /// Initial state: detecting protocol and request
-    Detecting, 
+    Detecting,
     /// Buffering request body
     ProcessingRequest {
         start_time: Instant,
@@ -24,7 +28,7 @@ enum ProcessorState {
         parser: Box<dyn ProtocolParser>,
     },
     /// Finished or Invalid
-    Finished, 
+    Finished,
 }
 
 pub struct StreamProcessor {
@@ -32,6 +36,12 @@ pub struct StreamProcessor {
     write_buf: Vec<u8>,
     read_buf: Vec<u8>,
     last_activity: Instant,
+}
+
+impl Default for StreamProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StreamProcessor {
@@ -49,7 +59,10 @@ impl StreamProcessor {
     }
 
     pub fn is_llm(&self) -> bool {
-        !matches!(self.state, ProcessorState::Detecting | ProcessorState::Finished)
+        !matches!(
+            self.state,
+            ProcessorState::Detecting | ProcessorState::Finished
+        )
     }
 
     pub fn handle_event(&mut self, direction: LlmDirection, data: &[u8], pid: u32) {
@@ -68,17 +81,28 @@ impl StreamProcessor {
         match direction {
             LlmDirection::Write => {
                 if self.write_buf.len() + data.len() > MAX_REQUEST_BUFFER_SIZE {
-                     warn!("LLM request buffer exceeded {}MB limit (PID: {}), discarding stream",
-                           MAX_REQUEST_BUFFER_SIZE / (1024 * 1024), pid);
-                     self.reset();
-                     return;
+                    warn!(
+                        "LLM request buffer exceeded {}MB limit (PID: {}), discarding stream",
+                        MAX_REQUEST_BUFFER_SIZE / (1024 * 1024),
+                        pid
+                    );
+                    self.reset();
+                    return;
                 }
                 self.write_buf.extend_from_slice(data);
             }
             LlmDirection::Read => {
+                // Optimization: Don't buffer responses if we haven't detected a valid LLM request yet
+                if matches!(self.state, ProcessorState::Detecting) {
+                    return;
+                }
+
                 if self.read_buf.len() + data.len() > MAX_RESPONSE_BUFFER_SIZE {
-                    warn!("LLM response buffer exceeded {}MB limit (PID: {}), discarding stream",
-                          MAX_RESPONSE_BUFFER_SIZE / (1024 * 1024), pid);
+                    warn!(
+                        "LLM response buffer exceeded {}MB limit (PID: {}), discarding stream",
+                        MAX_RESPONSE_BUFFER_SIZE / (1024 * 1024),
+                        pid
+                    );
                     self.reset();
                     return;
                 }
@@ -92,7 +116,6 @@ impl StreamProcessor {
         let current_state = std::mem::replace(&mut self.state, ProcessorState::Finished);
 
         self.state = match current_state {
-            
             // [State 1] Detecting
             ProcessorState::Detecting => {
                 // Try H1
@@ -110,31 +133,27 @@ impl StreamProcessor {
                         start_time: Instant::now(),
                         parser: Box::new(http::Http2Parser),
                     }
-                }
-                else {
+                } else {
                     // Not detected yet
                     if self.write_buf.len() > DETECTION_BUFFER_THRESHOLD {
                         // Buffer too large and still not detected -> likely not LLM
-                         ProcessorState::Finished
+                        ProcessorState::Finished
                     } else {
                         ProcessorState::Detecting // Keep detecting
                     }
                 }
-            },
+            }
 
             // [State 2] Processing Request
             ProcessorState::ProcessingRequest { start_time, parser } => {
                 if direction == LlmDirection::Read {
                     // Write finished (implied by Read starting), transition to Response phase
-                    ProcessorState::ProcessingResponse {
-                        start_time,
-                        parser,
-                    }
+                    ProcessorState::ProcessingResponse { start_time, parser }
                 } else {
                     // Still writing -> keep state
                     ProcessorState::ProcessingRequest { start_time, parser }
                 }
-            },
+            }
 
             // [State 3] Processing Response
             ProcessorState::ProcessingResponse { start_time, parser } => {
@@ -144,17 +163,27 @@ impl StreamProcessor {
                     let model_str = usage.model.as_deref().unwrap_or("unknown");
 
                     if usage.prompt_tokens == 0 && usage.completion_tokens == 0 {
-                        info!("LLM FAILED/ERROR | PID: {} | Model: {} | Latency: {:.2}s",
-                              pid, model_str, latency.as_secs_f64());
+                        info!(
+                            "LLM FAILED/ERROR | PID: {} | Model: {} | Latency: {:.2}s",
+                            pid,
+                            model_str,
+                            latency.as_secs_f64()
+                        );
                     } else {
-                        let thoughts_str = usage.thoughts_tokens
+                        let thoughts_str = usage
+                            .thoughts_tokens
                             .map(|t| format!(", Thoughts: {}", t))
                             .unwrap_or_default();
-                        info!("LLM SUCCESS | PID: {} | Model: {} | Latency: {:.2}s | Tokens: {} (Prompt: {}, Compl: {}{})",
-                              pid, model_str, latency.as_secs_f64(),
-                              usage.prompt_tokens + usage.completion_tokens,
-                              usage.prompt_tokens, usage.completion_tokens,
-                              thoughts_str);
+                        info!(
+                            "LLM SUCCESS | PID: {} | Model: {} | Latency: {:.2}s | Tokens: {} (Prompt: {}, Compl: {}{})",
+                            pid,
+                            model_str,
+                            latency.as_secs_f64(),
+                            usage.prompt_tokens + usage.completion_tokens,
+                            usage.prompt_tokens,
+                            usage.completion_tokens,
+                            thoughts_str
+                        );
                     }
 
                     ProcessorState::Finished
@@ -162,12 +191,11 @@ impl StreamProcessor {
                     // Incomplete -> keep state
                     ProcessorState::ProcessingResponse { start_time, parser }
                 }
-            },
+            }
 
             // [State 4] Finished
             ProcessorState::Finished => ProcessorState::Finished,
         };
-
     }
 
     fn reset(&mut self) {

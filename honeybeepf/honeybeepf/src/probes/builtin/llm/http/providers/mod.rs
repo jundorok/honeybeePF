@@ -19,9 +19,9 @@
 //! ```
 
 mod config;
-mod usage;
 mod request;
+mod usage;
 
-pub use config::{ProviderConfig, ProviderRegistry, ResponseConfig, RequestExtractorType};
-pub use usage::ConfigurableProvider;
+pub use config::{ProviderConfig, ProviderRegistry, RequestExtractorType, ResponseConfig};
 pub use request::RequestExtractor;
+pub use usage::ConfigurableProvider;

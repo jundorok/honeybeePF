@@ -1,10 +1,15 @@
-use std::{path::Path, time::Duration};
+use std::{
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use aya::{Ebpf, maps::RingBuf, programs::TracePoint};
 use log::{info, warn};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 static SHUTDOWN: once_cell::sync::Lazy<Arc<AtomicBool>> =
     once_cell::sync::Lazy::new(|| Arc::new(AtomicBool::new(false)));

@@ -1,8 +1,9 @@
-pub mod dynamic;
 pub mod binary;
+pub mod dynamic;
+
+use std::collections::HashSet;
 
 use anyhow::Result;
-use std::collections::HashSet;
 
 /// Facade for target discovery — full scan of all processes (used at startup).
 pub fn find_all_targets() -> Result<HashSet<String>> {

@@ -1,27 +1,31 @@
-pub mod types;
-pub mod processor;
 pub mod discovery;
 pub mod http;
+pub mod processor;
+pub mod types;
 
-use types::LlmDirection;
-use processor::StreamProcessor;
-use honeybeepf_common::{LlmEvent, ExecEvent};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
-use aya::programs::{UProbe, TracePoint};
-use aya::Ebpf;
+use aya::{
+    Ebpf,
+    programs::{TracePoint, UProbe},
+};
+use honeybeepf_common::{ExecEvent, LlmEvent};
 use log::{info, warn};
-use crate::probes::{spawn_ringbuf_handler, Probe};
-use std::collections::{HashMap, HashSet};
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use processor::StreamProcessor;
 use tokio::sync::Notify;
+use types::LlmDirection;
+
+use crate::probes::{Probe, spawn_ringbuf_handler};
 
 // Queue and timing constants
-const MAX_EXEC_QUEUE_SIZE: usize = 1024;           // Max pending exec PIDs
-const CLEANUP_INTERVAL_SECS: u64 = 30;             // How often to run cleanup
-const CONNECTION_RETENTION_SECS: u64 = 300;        // Keep idle connections for 5 minutes
+const MAX_EXEC_QUEUE_SIZE: usize = 1024; // Max pending exec PIDs
+const CLEANUP_INTERVAL_SECS: u64 = 30; // How often to run cleanup
+const CONNECTION_RETENTION_SECS: u64 = 300; // Keep idle connections for 5 minutes
 
 pub fn attach_probes_to_path(bpf: &mut Ebpf, libssl_path: &str) -> Result<()> {
     // SSL_read/SSL_write need BOTH entry (to save buf ptr) and exit (to read data + emit event)
@@ -31,8 +35,18 @@ pub fn attach_probes_to_path(bpf: &mut Ebpf, libssl_path: &str) -> Result<()> {
     attach_uprobe(bpf, "probe_ssl_write_exit", "SSL_write", libssl_path)?;
 
     // Handshake
-    attach_uprobe(bpf, "probe_ssl_do_handshake_enter", "SSL_do_handshake", libssl_path)?;
-    attach_uprobe(bpf, "probe_ssl_do_handshake_exit", "SSL_do_handshake", libssl_path)?;
+    attach_uprobe(
+        bpf,
+        "probe_ssl_do_handshake_enter",
+        "SSL_do_handshake",
+        libssl_path,
+    )?;
+    attach_uprobe(
+        bpf,
+        "probe_ssl_do_handshake_exit",
+        "SSL_do_handshake",
+        libssl_path,
+    )?;
 
     // Extended variants (optional — not all OpenSSL builds export these)
     let _ = attach_uprobe(bpf, "probe_ssl_rw_ex_enter", "SSL_write_ex", libssl_path);
@@ -44,12 +58,20 @@ pub fn attach_probes_to_path(bpf: &mut Ebpf, libssl_path: &str) -> Result<()> {
 }
 
 /// Scan only specific PIDs for new SSL libraries and attach probes to any not yet in `known`.
-pub fn attach_new_targets_for_pids(bpf: &mut Ebpf, known: &mut HashSet<String>, pids: &[u32]) -> Result<()> {
+pub fn attach_new_targets_for_pids(
+    bpf: &mut Ebpf,
+    known: &mut HashSet<String>,
+    pids: &[u32],
+) -> Result<()> {
     let targets = discovery::find_targets_for_pids(pids)?;
 
     for path in targets {
-        if path.contains("libcrypto") { continue; }
-        if known.contains(&path) { continue; }
+        if path.contains("libcrypto") {
+            continue;
+        }
+        if known.contains(&path) {
+            continue;
+        }
 
         info!("[Re-discovery] New SSL library found: {}", path);
         match attach_probes_to_path(bpf, &path) {
@@ -111,37 +133,41 @@ impl Probe for LlmProbe {
         let targets = discovery::find_all_targets()?;
 
         if targets.is_empty() {
-             warn!("No targets found. LLM probing disabled.");
-             return Ok(());
+            warn!("No targets found. LLM probing disabled.");
+            return Ok(());
         }
 
         for path in &targets {
-             // Skip libcrypto for SSL_* probes as they usually don't contain them
-             if path.contains("libcrypto") {
-                 info!("Skipping SSL probes for libcrypto: {}", path);
-                 continue;
-             }
+            // Skip libcrypto for SSL_* probes as they usually don't contain them
+            if path.contains("libcrypto") {
+                info!("Skipping SSL probes for libcrypto: {}", path);
+                continue;
+            }
 
-             info!("Attaching LLM (SSL) probes to detected library: {}", path);
-             if let Err(e) = attach_probes_to_path(bpf, path) {
-                 warn!("Failed to attach to {}: {}", path, e);
-             }
+            info!("Attaching LLM (SSL) probes to detected library: {}", path);
+            if let Err(e) = attach_probes_to_path(bpf, path) {
+                warn!("Failed to attach to {}: {}", path, e);
+            }
         }
 
         let state: StreamMap = Arc::new(Mutex::new(HashMap::new()));
         let handler_state = state.clone();
 
         spawn_ringbuf_handler(bpf, "SSL_EVENTS", move |event: LlmEvent| {
-             let direction = LlmDirection::from(event.rw);
-             if event.is_handshake == 1 { return; }
-             if event.buf_filled == 0 || event.len == 0 { return; }
+            let direction = LlmDirection::from(event.rw);
+            if event.is_handshake == 1 {
+                return;
+            }
+            if event.buf_filled == 0 || event.len == 0 {
+                return;
+            }
 
-             let key = (event.metadata.pid, event.metadata._pad);
-             let mut map = handler_state.lock().unwrap_or_else(|e| e.into_inner());
-             let processor = map.entry(key).or_insert_with(StreamProcessor::new);
+            let key = (event.metadata.pid, event.metadata._pad);
+            let mut map = handler_state.lock().unwrap_or_else(|e| e.into_inner());
+            let processor = map.entry(key).or_default();
 
-             let data_len = std::cmp::min(event.len as usize, honeybeepf_common::MAX_SSL_BUF_SIZE);
-             processor.handle_event(direction, &event.buf[..data_len], event.metadata.pid);
+            let data_len = std::cmp::min(event.len as usize, honeybeepf_common::MAX_SSL_BUF_SIZE);
+            processor.handle_event(direction, &event.buf[..data_len], event.metadata.pid);
         })?;
 
         start_cleanup_task(state);
@@ -159,7 +185,7 @@ fn start_cleanup_task(state: StreamMap) {
             let now = std::time::Instant::now();
 
             map.retain(|_, v| {
-                 now.duration_since(v.last_activity()).as_secs() < CONNECTION_RETENTION_SECS
+                now.duration_since(v.last_activity()).as_secs() < CONNECTION_RETENTION_SECS
             });
         }
     });
@@ -170,15 +196,15 @@ fn attach_uprobe(bpf: &mut Ebpf, prog_name: &str, func_name: &str, path: &str) -
         .program_mut(prog_name)
         .with_context(|| format!("Failed to find program {}", prog_name))?
         .try_into()?;
-    
+
     // Check if loaded using fd()
     if program.fd().is_err() {
         program.load()?;
     }
-    
+
     program
         .attach(Some(func_name), 0, path, None)
         .with_context(|| format!("Failed to attach {} to {}", prog_name, func_name))?;
-    
+
     Ok(())
 }

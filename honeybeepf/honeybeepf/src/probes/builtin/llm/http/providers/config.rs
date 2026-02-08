@@ -38,10 +38,18 @@ pub struct ResponseConfig {
     pub model_path: String,
 }
 
-fn default_usage_path() -> String { "usage".to_string() }
-fn default_prompt_tokens() -> String { "prompt_tokens".to_string() }
-fn default_completion_tokens() -> String { "completion_tokens".to_string() }
-fn default_model_path() -> String { "model".to_string() }
+fn default_usage_path() -> String {
+    "usage".to_string()
+}
+fn default_prompt_tokens() -> String {
+    "prompt_tokens".to_string()
+}
+fn default_completion_tokens() -> String {
+    "completion_tokens".to_string()
+}
+fn default_model_path() -> String {
+    "model".to_string()
+}
 
 impl Default for ResponseConfig {
     fn default() -> Self {
@@ -97,12 +105,17 @@ impl ProviderRegistry {
                 ProviderConfig {
                     name: "openai".to_string(),
                     hosts: vec!["api.openai.com".to_string()],
-                    paths: vec!["/chat/completions".to_string(), "/v1/completions".to_string()],
+                    paths: vec![
+                        "/chat/completions".to_string(),
+                        "/v1/completions".to_string(),
+                    ],
                     response: ResponseConfig {
                         usage_path: "usage".to_string(),
                         prompt_tokens: "prompt_tokens".to_string(),
                         completion_tokens: "completion_tokens".to_string(),
-                        thoughts_tokens: Some("completion_tokens_details.reasoning_tokens".to_string()),
+                        thoughts_tokens: Some(
+                            "completion_tokens_details.reasoning_tokens".to_string(),
+                        ),
                         model_path: "model".to_string(),
                     },
                     request_extractor: RequestExtractorType::Messages,
@@ -165,7 +178,10 @@ mod tests {
         assert!(openai.is_some());
         assert_eq!(openai.unwrap().name, "openai");
 
-        let gemini = registry.find_provider("generativelanguage.googleapis.com", "/v1/models/gemini:generateContent");
+        let gemini = registry.find_provider(
+            "generativelanguage.googleapis.com",
+            "/v1/models/gemini:generateContent",
+        );
         assert!(gemini.is_some());
         assert_eq!(gemini.unwrap().name, "gemini");
     }

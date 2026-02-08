@@ -80,6 +80,8 @@ securityContext:
       - BPF
       - NET_ADMIN
       - SYS_RESOURCE
+      - SYS_PTRACE
+      - DAC_OVERRIDE
 
 # Resource limits with robust parsing (quotes)
 resources:

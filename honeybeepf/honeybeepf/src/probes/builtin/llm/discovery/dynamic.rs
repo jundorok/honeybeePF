@@ -1,13 +1,11 @@
+use std::{collections::HashSet, path::PathBuf, process::Command};
+
 use anyhow::Result;
 use log::debug;
 use once_cell::sync::Lazy;
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::process::Command;
 
-static SSL_RE: Lazy<regex::Regex> = Lazy::new(|| {
-    regex::Regex::new(r"libssl\.so\..*|libcrypto\.so\..*").unwrap()
-});
+static SSL_RE: Lazy<regex::Regex> =
+    Lazy::new(|| regex::Regex::new(r"libssl\.so\..*|libcrypto\.so\..*").unwrap());
 
 /// Scans running processes to find unique paths to libssl and libcrypto libraries.
 /// Also includes system default SSL libraries from ldconfig to pre-attach probes.
@@ -37,20 +35,19 @@ pub fn find_ssl_libraries() -> Result<Vec<String>> {
             };
 
             for map in maps {
-                if let procfs::process::MMapPath::Path(path_buf) = map.pathname {
-                    if let Some(file_name) = path_buf.file_name().and_then(|n| n.to_str()) {
-                        if SSL_RE.is_match(file_name) {
-                            // Resolve container paths to host paths
-                            let host_path = resolve_host_path(process.pid, &path_buf);
+                if let procfs::process::MMapPath::Path(path_buf) = map.pathname
+                    && let Some(file_name) = path_buf.file_name().and_then(|n| n.to_str())
+                    && SSL_RE.is_match(file_name)
+                {
+                    // Resolve container paths to host paths
+                    let host_path = resolve_host_path(process.pid, &path_buf);
 
-                            // Check existence on host
-                            if host_path.exists() {
-                                let path_str = host_path.to_string_lossy().to_string();
-                                if !ssl_paths.contains(&path_str) {
-                                    debug!("Found SSL Lib: {} (from PID: {})", path_str, process.pid);
-                                    ssl_paths.insert(path_str);
-                                }
-                            }
+                    // Check existence on host
+                    if host_path.exists() {
+                        let path_str = host_path.to_string_lossy().to_string();
+                        if !ssl_paths.contains(&path_str) {
+                            debug!("Found SSL Lib: {} (from PID: {})", path_str, process.pid);
+                            ssl_paths.insert(path_str);
                         }
                     }
                 }
@@ -62,17 +59,17 @@ pub fn find_ssl_libraries() -> Result<Vec<String>> {
 }
 
 /// Resolves a path from a process's namespace to the host filesystem.
-fn resolve_host_path(pid: i32, container_path: &PathBuf) -> PathBuf {
+fn resolve_host_path(pid: i32, container_path: &std::path::Path) -> PathBuf {
     if container_path.starts_with("/proc") {
-        return container_path.clone();
+        return container_path.to_path_buf();
     }
-    
+
     // /proc/<PID>/root/<CONTAINER_PATH>
     // Note: This logic assumes Linux-style procfs layout.
     let mut root_path = PathBuf::from(format!("/proc/{}/root", pid));
     let relative_path = container_path.strip_prefix("/").unwrap_or(container_path);
     root_path.push(relative_path);
-    
+
     root_path
 }
 
@@ -92,17 +89,16 @@ pub fn find_ssl_for_pids(pids: &[u32]) -> Result<Vec<String>> {
         };
 
         for map in maps {
-            if let procfs::process::MMapPath::Path(path_buf) = map.pathname {
-                if let Some(file_name) = path_buf.file_name().and_then(|n| n.to_str()) {
-                    if SSL_RE.is_match(file_name) {
-                        let host_path = resolve_host_path(process.pid, &path_buf);
-                        if host_path.exists() {
-                            let path_str = host_path.to_string_lossy().to_string();
-                            if !ssl_paths.contains(&path_str) {
-                                debug!("Found SSL Lib: {} (from PID: {})", path_str, process.pid);
-                                ssl_paths.insert(path_str);
-                            }
-                        }
+            if let procfs::process::MMapPath::Path(path_buf) = map.pathname
+                && let Some(file_name) = path_buf.file_name().and_then(|n| n.to_str())
+                && SSL_RE.is_match(file_name)
+            {
+                let host_path = resolve_host_path(process.pid, &path_buf);
+                if host_path.exists() {
+                    let path_str = host_path.to_string_lossy().to_string();
+                    if !ssl_paths.contains(&path_str) {
+                        debug!("Found SSL Lib: {} (from PID: {})", path_str, process.pid);
+                        ssl_paths.insert(path_str);
                     }
                 }
             }

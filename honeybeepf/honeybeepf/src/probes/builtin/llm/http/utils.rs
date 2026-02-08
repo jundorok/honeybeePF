@@ -27,7 +27,7 @@ pub fn decode_chunked_body(buffer: &[u8]) -> Cow<'_, [u8]> {
 
     let mut result = Vec::with_capacity(buffer.len());
     let mut pos = 0;
-    
+
     while pos < buffer.len() {
         let size_end = match find_pattern(&buffer[pos..], b"\r\n") {
             Some(i) => pos + i,
@@ -37,12 +37,14 @@ pub fn decode_chunked_body(buffer: &[u8]) -> Cow<'_, [u8]> {
         let size_str = String::from_utf8_lossy(&buffer[pos..size_end]);
         let chunk_size = match usize::from_str_radix(size_str.trim(), 16) {
             Ok(n) => n,
-            Err(_) => break, 
+            Err(_) => break,
         };
 
-        if chunk_size == 0 { break; } 
+        if chunk_size == 0 {
+            break;
+        }
 
-        let data_start = size_end + 2; 
+        let data_start = size_end + 2;
         let data_end = data_start + chunk_size;
 
         if data_end > buffer.len() {
@@ -51,9 +53,9 @@ pub fn decode_chunked_body(buffer: &[u8]) -> Cow<'_, [u8]> {
         }
 
         result.extend_from_slice(&buffer[data_start..data_end]);
-        pos = data_end + 2; 
+        pos = data_end + 2;
     }
-    
+
     if result.is_empty() {
         Cow::Borrowed(buffer)
     } else {
@@ -114,12 +116,22 @@ fn find_balanced_brace(bytes: &[u8], start: usize) -> Option<usize> {
     let mut in_string = false;
     let mut escape = false;
 
-    for i in start..bytes.len() {
-        let b = bytes[i];
-        if escape { escape = false; continue; }
-        if b == b'\\' && in_string { escape = true; continue; }
-        if b == b'"' { in_string = !in_string; continue; }
-        if in_string { continue; }
+    for (i, &b) in bytes.iter().enumerate().skip(start) {
+        if escape {
+            escape = false;
+            continue;
+        }
+        if b == b'\\' && in_string {
+            escape = true;
+            continue;
+        }
+        if b == b'"' {
+            in_string = !in_string;
+            continue;
+        }
+        if in_string {
+            continue;
+        }
 
         if b == b'{' {
             depth += 1;

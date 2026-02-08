@@ -1,6 +1,9 @@
 use serde_json::Value;
-use super::config::ProviderConfig;
-use super::request::{get_extractor, RequestExtractor};
+
+use super::{
+    config::ProviderConfig,
+    request::{RequestExtractor, get_extractor},
+};
 use crate::probes::builtin::llm::types::UsageInfo;
 
 /// A provider instance created from configuration
@@ -21,10 +24,10 @@ impl ConfigurableProvider {
 
     /// Check if this provider matches the given host and path
     pub fn matches(&self, host: &str, path: &str) -> bool {
-        let host_match = self.config.hosts.is_empty()
-            || self.config.hosts.iter().any(|h| host.contains(h));
-        let path_match = self.config.paths.is_empty()
-            || self.config.paths.iter().any(|p| path.contains(p));
+        let host_match =
+            self.config.hosts.is_empty() || self.config.hosts.iter().any(|h| host.contains(h));
+        let path_match =
+            self.config.paths.is_empty() || self.config.paths.iter().any(|p| path.contains(p));
         host_match && path_match
     }
 
@@ -48,13 +51,15 @@ impl ConfigurableProvider {
         let usage = get_nested_value(json, &response_config.usage_path)?;
 
         // Extract token counts
-        let prompt = get_nested_value(usage, &response_config.prompt_tokens)
-            .and_then(|v| v.as_u64())?;
-        let completion = get_nested_value(usage, &response_config.completion_tokens)
-            .and_then(|v| v.as_u64())?;
+        let prompt =
+            get_nested_value(usage, &response_config.prompt_tokens).and_then(|v| v.as_u64())?;
+        let completion =
+            get_nested_value(usage, &response_config.completion_tokens).and_then(|v| v.as_u64())?;
 
         // Optional: thoughts/reasoning tokens
-        let thoughts = response_config.thoughts_tokens.as_ref()
+        let thoughts = response_config
+            .thoughts_tokens
+            .as_ref()
             .and_then(|path| get_nested_value(usage, path))
             .and_then(|v| v.as_u64());
 
@@ -83,11 +88,12 @@ fn get_nested_value<'a>(json: &'a Value, path: &str) -> Option<&'a Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::super::config::{
-        ProviderConfig, ResponseConfig, RequestExtractorType,
-    };
     use serde_json::json;
+
+    use super::{
+        super::config::{ProviderConfig, RequestExtractorType, ResponseConfig},
+        *,
+    };
 
     fn openai_config() -> ProviderConfig {
         ProviderConfig {

@@ -1,15 +1,21 @@
-use super::utils as byte_utils;
-use super::providers::{ProviderRegistry, ConfigurableProvider};
-use crate::probes::builtin::llm::types::{UsageInfo, SseChunkDelta};
+use std::io::Read;
+
 use flate2::read::GzDecoder;
 use once_cell::sync::Lazy;
 use serde_json::Value;
-use std::io::Read;
+
+use super::{
+    providers::{ConfigurableProvider, ProviderRegistry},
+    utils as byte_utils,
+};
+use crate::probes::builtin::llm::types::{SseChunkDelta, UsageInfo};
 
 /// Cached providers - built once at initialization
 static CACHED_PROVIDERS: Lazy<Vec<ConfigurableProvider>> = Lazy::new(|| {
     let registry = load_provider_registry();
-    registry.providers.into_iter()
+    registry
+        .providers
+        .into_iter()
         .map(ConfigurableProvider::new)
         .collect()
 });
@@ -19,23 +25,25 @@ static PROVIDER_REGISTRY: Lazy<ProviderRegistry> = Lazy::new(load_provider_regis
 
 fn load_provider_registry() -> ProviderRegistry {
     // 1. Try loading from config file
+    // 1. Try loading from config file (supports YAML, JSON, TOML via config crate)
     if let Ok(path) = std::env::var("LLM_PROVIDERS_CONFIG_FILE") {
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            if let Ok(reg) = serde_yml::from_str(&content) {
-                log::info!("Loaded LLM providers from: {}", path);
-                return reg;
-            }
-            log::warn!("Failed to parse config file: {}", path);
+        if let Ok(settings) = config::Config::builder()
+            .add_source(config::File::with_name(&path))
+            .build()
+            && let Ok(reg) = settings.try_deserialize::<ProviderRegistry>()
+        {
+            log::info!("Loaded LLM providers from: {}", path);
+            return reg;
         }
+        log::warn!("Failed to load or parse config file: {}", path);
     }
 
     // 2. Try inline JSON (for Kubernetes ConfigMap)
-    if let Ok(config) = std::env::var("LLM_PROVIDERS_CONFIG") {
-        if !config.is_empty() {
-            if let Ok(reg) = ProviderRegistry::from_json(&config) {
-                return reg;
-            }
-        }
+    if let Ok(config) = std::env::var("LLM_PROVIDERS_CONFIG")
+        && !config.is_empty()
+        && let Ok(reg) = ProviderRegistry::from_json(&config)
+    {
+        return reg;
     }
 
     // 3. Use defaults
@@ -69,21 +77,23 @@ impl ProtocolParser for Http11Parser {
         let mut headers = [httparse::EMPTY_HEADER; 64];
         let mut req = httparse::Request::new(&mut headers);
 
-        match req.parse(buffer) {
-            Ok(_) => {
-                if let Some(path) = req.path {
-                    let host_header = req.headers.iter()
-                        .find(|h| h.name.eq_ignore_ascii_case("Host"))
-                        .map(|h| String::from_utf8_lossy(h.value).to_string())
-                        .unwrap_or_default();
+        if req.parse(buffer).is_ok()
+            && let Some(path) = req.path
+        {
+            let host_header = req
+                .headers
+                .iter()
+                .find(|h| h.name.eq_ignore_ascii_case("Host"))
+                .map(|h| String::from_utf8_lossy(h.value).to_string())
+                .unwrap_or_default();
 
-                    // Check if host+path matches any configured provider
-                    if PROVIDER_REGISTRY.find_provider(&host_header, path).is_some() {
-                        return Some(path.to_string());
-                    }
-                }
-            },
-            Err(_) => {}
+            // Check if host+path matches any configured provider
+            if PROVIDER_REGISTRY
+                .find_provider(&host_header, path)
+                .is_some()
+            {
+                return Some(path.to_string());
+            }
         }
         None
     }
@@ -144,7 +154,9 @@ impl ProtocolParser for Http11Parser {
 
         let trimmed = byte_utils::trim_trailing_whitespace(&decompressed);
 
-        if !trimmed.ends_with(b"}") { return None; }
+        if !trimmed.ends_with(b"}") {
+            return None;
+        }
 
         let s = String::from_utf8_lossy(trimmed);
         let start = s.find('{')?;
@@ -162,17 +174,22 @@ impl ProtocolParser for Http2Parser {
     fn detect_request(&self, buffer: &[u8]) -> Option<String> {
         // Skip if this looks like HTTP/1.1 (starts with HTTP method)
         let preview = &buffer[..std::cmp::min(10, buffer.len())];
-        if preview.starts_with(b"GET ") || preview.starts_with(b"POST ") ||
-           preview.starts_with(b"PUT ") || preview.starts_with(b"DELETE ") ||
-           preview.starts_with(b"PATCH ") || preview.starts_with(b"HEAD ") {
+        if preview.starts_with(b"GET ")
+            || preview.starts_with(b"POST ")
+            || preview.starts_with(b"PUT ")
+            || preview.starts_with(b"DELETE ")
+            || preview.starts_with(b"PATCH ")
+            || preview.starts_with(b"HEAD ")
+        {
             return None;
         }
 
         // H2 body-based detection via JSON keys
-        if byte_utils::contains_pattern(buffer, b"\"messages\"") ||
-           byte_utils::contains_pattern(buffer, b"\"contents\"") ||
-           byte_utils::contains_pattern(buffer, b"\"prompt\"") ||
-           byte_utils::contains_pattern(buffer, b"\"model\"") {
+        if byte_utils::contains_pattern(buffer, b"\"messages\"")
+            || byte_utils::contains_pattern(buffer, b"\"contents\"")
+            || byte_utils::contains_pattern(buffer, b"\"prompt\"")
+            || byte_utils::contains_pattern(buffer, b"\"model\"")
+        {
             return Some("h2_body_detected".to_string());
         }
 
@@ -208,10 +225,13 @@ impl ProtocolParser for Http2Parser {
             let s = String::from_utf8_lossy(payload);
 
             // Skip request-shaped objects (no usage data)
-            if s.contains("\"messages\"") || s.contains("\"contents\"") || s.contains("\"prompt\"") {
-                if !s.contains("\"usage\"") && !s.contains("\"usageMetadata\"") {
-                    continue;
-                }
+            if (s.contains("\"messages\"")
+                || s.contains("\"contents\"")
+                || s.contains("\"prompt\""))
+                && !s.contains("\"usage\"")
+                && !s.contains("\"usageMetadata\"")
+            {
+                continue;
             }
 
             if let Some(info) = parse_response_json(&s) {
@@ -236,18 +256,22 @@ fn parse_sse_body(body: &[u8]) -> Option<UsageInfo> {
 
     for line in text.lines() {
         let line = line.trim();
-        if !line.starts_with("data: ") { continue; }
+        if !line.starts_with("data: ") {
+            continue;
+        }
         let data = &line["data: ".len()..];
-        if data == "[DONE]" { break; }
+        if data == "[DONE]" {
+            break;
+        }
 
-        if let Ok(chunk) = serde_json::from_str::<SseChunkDelta>(data) {
-            if let Some(_u) = chunk.usage {
-                // SSE chunks with usage — parse the raw JSON to use providers
-                if let Ok(val) = serde_json::from_str::<Value>(data) {
-                    if let Some(info) = parse_response_json_value(&val) {
-                        usage = Some(info);
-                    }
-                }
+        if let Ok(chunk) = serde_json::from_str::<SseChunkDelta>(data)
+            && let Some(_u) = chunk.usage
+        {
+            // SSE chunks with usage — parse the raw JSON to use providers
+            if let Ok(val) = serde_json::from_str::<Value>(data)
+                && let Some(info) = parse_response_json_value(&val)
+            {
+                usage = Some(info);
             }
         }
     }
@@ -293,9 +317,10 @@ fn decompress_gzip(data: &[u8]) -> Result<Vec<u8>, std::io::Error> {
 }
 
 fn is_llm_path(path: &str) -> bool {
-    PROVIDER_REGISTRY.providers.iter().any(|config| {
-        config.paths.iter().any(|p| path.contains(p))
-    })
+    PROVIDER_REGISTRY
+        .providers
+        .iter()
+        .any(|config| config.paths.iter().any(|p| path.contains(p)))
 }
 
 /// Extract user text from request JSON by trying all providers.
@@ -335,12 +360,11 @@ fn extract_text_from_incomplete_json(json: &str) -> String {
             let start = pos + idx + pattern.len();
             let rest = json[start..].trim_start();
 
-            if rest.starts_with('"') {
-                if let Some(text) = extract_json_string(&rest[1..]) {
-                    if text.len() > 10 {
-                        texts.push(text);
-                    }
-                }
+            if rest.starts_with('"')
+                && let Some(text) = extract_json_string(&rest[1..])
+                && text.len() > 10
+            {
+                texts.push(text);
             }
             pos = start;
         }
@@ -374,5 +398,9 @@ fn extract_json_string(s: &str) -> Option<String> {
     }
 
     // Truncated string - return what we have
-    if !result.is_empty() { Some(result) } else { None }
+    if !result.is_empty() {
+        Some(result)
+    } else {
+        None
+    }
 }
