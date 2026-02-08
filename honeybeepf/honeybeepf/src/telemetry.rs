@@ -18,10 +18,6 @@ use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 
-/// Default OTLP endpoint (FQDN format)
-/// Can be overridden via Helm values
-const DEFAULT_OTLP_ENDPOINT: &str = "http://honeybeepf-otel-collector-opentelemetry-collector:4317";
-
 /// Metric export interval in seconds
 const METRIC_EXPORT_INTERVAL_SECS: u64 = 30;
 
@@ -86,23 +82,32 @@ impl HoneyBeeMetrics {
 
 /// Priority:
 /// 1. OTEL_EXPORTER_OTLP_ENDPOINT environment variable (injected from Helm values)
-/// 2. Code default value (FQDN)
-fn get_otlp_endpoint() -> String {
-    let endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
-        .unwrap_or_else(|_| DEFAULT_OTLP_ENDPOINT.to_string());
+/// 2. If not set, metrics are disabled (no default fallback)
+fn get_otlp_endpoint() -> Option<String> {
+    let endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").ok()?;
+    if endpoint.is_empty() {
+        return None;
+    }
     
     if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
-        format!("http://{}", endpoint)
+        Some(format!("http://{}", endpoint))
     } else {
-        endpoint
+        Some(endpoint)
     }
 }
 
 /// Initialize OpenTelemetry metrics provider
 /// 
-/// Configures metrics export to OTLP Collector via gRPC
+/// Configures metrics export to OTLP Collector via gRPC.
+/// Skips initialization if OTEL_EXPORTER_OTLP_ENDPOINT is not set.
 pub fn init_metrics() -> Result<()> {
-    let endpoint = get_otlp_endpoint();
+    let endpoint = match get_otlp_endpoint() {
+        Some(ep) => ep,
+        None => {
+            info!("OTEL_EXPORTER_OTLP_ENDPOINT not set. Metrics export disabled.");
+            return Ok(());
+        }
+    };
     
     info!("Initializing OpenTelemetry metrics exporter");
     info!("OTLP endpoint: {}", endpoint);
@@ -226,33 +231,38 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_get_otlp_endpoint_default() {
-        // Use default value if environment variable is not set
+    fn test_get_otlp_endpoint_not_set() {
+        // Returns None if environment variable is not set
         std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
-        let endpoint = get_otlp_endpoint();
-        assert!(endpoint.starts_with("http://"));
-        assert!(endpoint.contains("honeybeepf-otel-collector"));
+        assert!(get_otlp_endpoint().is_none());
+    }
+
+    #[test]
+    #[serial]
+    fn test_get_otlp_endpoint_empty() {
+        // Returns None if environment variable is empty
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "");
+        assert!(get_otlp_endpoint().is_none());
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
     }
 
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_from_env() {
-   
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
         
         let endpoint = get_otlp_endpoint();
-        assert_eq!(endpoint, "http://custom:4317");
+        assert_eq!(endpoint, Some("http://custom:4317".to_string()));
         std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
     }
 
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_adds_http_prefix() {
-
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
         
         let endpoint = get_otlp_endpoint();
-        assert_eq!(endpoint, "http://collector:4317");
+        assert_eq!(endpoint, Some("http://collector:4317".to_string()));
         std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
     }
 }

@@ -92,18 +92,12 @@ opentelemetry-collector:
         metrics:
           level: none  
       pipelines:
+        traces: null
+        logs: null
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, batch]
           exporters: [prometheus]
-        traces:
-          receivers: [otlp]
-          processors: [memory_limiter, batch]
-          exporters: [debug]
-        logs:
-          receivers: [otlp]
-          processors: [memory_limiter, batch]
-          exporters: [debug]
 
   service:
     enabled: true

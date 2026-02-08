@@ -41,3 +41,7 @@ terraform.rc
 *.swo
 .idea/
 .vscode/
+
+.envdist/
+
+dist/

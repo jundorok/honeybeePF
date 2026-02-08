@@ -1,10 +1,26 @@
+use std::{
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
+
 use anyhow::{Context, Result};
-use aya::maps::RingBuf;
-use aya::programs::TracePoint;
-use aya::Ebpf;
+use aya::{Ebpf, maps::RingBuf, programs::TracePoint};
 use log::{info, warn};
-use std::path::Path;
-use std::time::Duration;
+
+static SHUTDOWN: once_cell::sync::Lazy<Arc<AtomicBool>> =
+    once_cell::sync::Lazy::new(|| Arc::new(AtomicBool::new(false)));
+
+pub fn shutdown_flag() -> Arc<AtomicBool> {
+    SHUTDOWN.clone()
+}
+
+pub fn request_shutdown() {
+    SHUTDOWN.store(true, Ordering::Relaxed);
+}
 
 pub mod builtin;
 pub mod custom;
@@ -59,15 +75,18 @@ where
     T: Copy + Send + 'static,
     F: Fn(T) + Send + 'static,
 {
-    let mut ring_buf =
-        RingBuf::try_from(bpf.take_map(map_name).context("Failed to get map")?)?;
+    let mut ring_buf = RingBuf::try_from(bpf.take_map(map_name).context("Failed to get map")?)?;
+    let shutdown = shutdown_flag();
+
     tokio::task::spawn_blocking(move || {
-        loop {
+        while !shutdown.load(Ordering::Relaxed) {
             let mut has_work = false;
             while let Some(item) = ring_buf.next() {
                 has_work = true;
-                let event = unsafe { (item.as_ptr() as *const T).read_unaligned() };
-                handler(event);
+                if item.len() >= std::mem::size_of::<T>() {
+                    let event = unsafe { (item.as_ptr() as *const T).read_unaligned() };
+                    handler(event);
+                }
             }
             if !has_work {
                 std::thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
