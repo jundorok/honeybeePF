@@ -18,7 +18,7 @@ use crate::probes::{
         block_io::BlockIoProbe,
         gpu_usage::GpuUsageProbe,
         llm::{
-            ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
+            ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, find_all_targets,
             setup_exec_watch,
         },
         network::NetworkLatencyProbe,
@@ -70,7 +70,7 @@ impl HoneyBeeEngine {
         const BATCH_WAIT_MS: u64 = 50;
 
         // Seed with initial targets to avoid duplicate attachments
-        let mut known_targets: HashSet<String> = discovery::find_all_targets().unwrap_or_default();
+        let mut known_targets: HashSet<String> = find_all_targets().unwrap_or_default();
         let shutdown = shutdown_flag();
 
         info!("LLM discovery active. Press Ctrl-C to exit.");
