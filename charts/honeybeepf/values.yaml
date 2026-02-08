@@ -57,6 +57,22 @@ builtinProbes:
     enabled: false
   gpu_usage:
     enabled: false
+  llm:
+    enabled: false
+    # Custom providers config (optional). Built-in: OpenAI, Anthropic, Gemini
+    # Add your own providers here (e.g. Ollama, vLLM, private models).
+    providers: []
+    # Example:
+    # providers:
+    #   - name: "ollama"
+    #     hosts: ["localhost", "ollama.internal"]
+    #     paths: ["/api/generate", "/api/chat"]
+    #     response:
+    #       usage_path: "usage"               # JSON path to usage object
+    #       prompt_tokens: "prompt_eval_count" # Field name for input tokens
+    #       completion_tokens: "eval_count"    # Field name for output tokens
+    #       model_path: "model"
+    #     request_extractor: "messages"       # How to extract prompt text (messages, contents, prompt)
   interval: 1000
 
 customProbes:
@@ -76,6 +92,8 @@ securityContext:
       - BPF
       - NET_ADMIN
       - SYS_RESOURCE
+      - SYS_PTRACE
+      - DAC_OVERRIDE
 
 # Resource limits with robust parsing (quotes)
 resources:
