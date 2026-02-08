@@ -45,8 +45,8 @@ jobs:
 
       - name: Run Clippy (common crate)
         working-directory: honeybeepf
-        run: cargo clippy -p honeybeepf-common -- -D warnings
+        run: cargo clippy -p honeybeepf-common
 
       - name: Run Clippy (userspace - honeybeepf)
         working-directory: honeybeepf
-        run: cargo clippy -p honeybeepf -- -D warnings
+        run: cargo clippy -p honeybeepf

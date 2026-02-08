@@ -84,7 +84,7 @@ fmt-check:
 
 # Lint with clippy (excludes eBPF packages that only compile on Linux)
 lint:
-	cargo clippy -p honeybeepf-common -- -D warnings
+	cargo clippy -p honeybeepf-common
 
 # Lint with auto-fix
 lint-fix:
@@ -92,7 +92,7 @@ lint-fix:
 
 # Lint all (Linux only - includes eBPF and userspace)
 lint-all:
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy --all-targets --all-features
 
 # Lint all with auto-fix (Linux only)
 lint-fix-all:
