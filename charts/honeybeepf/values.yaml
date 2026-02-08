@@ -54,9 +54,9 @@ builtinProbes:
   block_io:
     enabled: false
   network_latency:
-    enabled: true
-  gpu_open:
-    enabled: true
+    enabled: false
+  gpu_usage:
+    enabled: false
   interval: 1000
 
 customProbes:
