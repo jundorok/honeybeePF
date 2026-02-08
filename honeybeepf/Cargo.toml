@@ -4,6 +4,7 @@ members = [
     "honeybeepf",
     "honeybeepf-common",
     "honeybeepf-ebpf",
+    "xtask",
 ]
 default-members = ["honeybeepf", "honeybeepf-common"]
 
@@ -36,6 +37,8 @@ libc = { version = "0.2.159", default-features = false }
 log = { version = "0.4.22", default-features = false }
 tokio = { version = "1.40.0", default-features = false }
 which = { version = "6.0.0", default-features = false }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [profile.release.package.honeybeepf-ebpf]
 debug = 2

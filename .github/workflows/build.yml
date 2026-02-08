@@ -3,17 +3,19 @@ name: Build and Release
 on:
   push:
     branches: [main]
-    tags:
-      - 'v*'
   pull_request:
     branches: [main]
   workflow_dispatch:
     inputs:
-      release:
-        description: 'Create a release'
+      bump:
+        description: 'Version bump type'
         required: false
-        default: false
-        type: boolean
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 env:
   CARGO_TERM_COLOR: always
@@ -47,6 +49,7 @@ jobs:
         run: |
           rustup install nightly
           rustup component add rust-src --toolchain nightly
+          rustup target add ${{ matrix.target }} --toolchain nightly
 
       - name: Install bpf-linker
         run: cargo install bpf-linker
@@ -179,29 +182,66 @@ jobs:
           path: dist/
           retention-days: 30
 
-  # Release job - only on tags
+  # Release job - auto bump version on merge to main
   release:
     name: Release
     needs: package
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          # Get latest tag, default to v0.0.0 if none exists
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+
+      - name: Bump version
+        id: bump
+        run: |
+          LATEST_TAG="${{ steps.get_tag.outputs.latest_tag }}"
+          
+          # Remove 'v' prefix
+          VERSION=${LATEST_TAG#v}
+          
+          # Split into major.minor.patch
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Default bump type is patch (can be overridden by workflow_dispatch)
+          BUMP_TYPE="${{ github.event.inputs.bump || 'patch' }}"
+          
+          case $BUMP_TYPE in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch|*)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumping from $LATEST_TAG to $NEW_VERSION ($BUMP_TYPE)"
+
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
           name: honeybeepf-packages
           path: dist
-
-      - name: Get version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "version=dev-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
-          fi
 
       - name: Create checksums
         run: |
@@ -209,18 +249,25 @@ jobs:
           sha256sum *.tar.gz > checksums.sha256
           cat checksums.sha256
 
+      - name: Create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a ${{ steps.bump.outputs.new_version }} -m "Release ${{ steps.bump.outputs.new_version }}"
+          git push origin ${{ steps.bump.outputs.new_version }}
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: HoneybeePF ${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.bump.outputs.new_version }}
+          name: HoneybeePF ${{ steps.bump.outputs.new_version }}
           draft: false
-          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          prerelease: false
           files: |
             dist/*.tar.gz
             dist/checksums.sha256
           body: |
-            ## HoneybeePF ${{ steps.version.outputs.version }}
+            ## HoneybeePF ${{ steps.bump.outputs.new_version }}
             
             ### Downloads
             
@@ -233,7 +280,7 @@ jobs:
             
             ```bash
             # Download and extract (x86_64)
-            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/honeybeepf-linux-x86_64.tar.gz
+            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ steps.bump.outputs.new_version }}/honeybeepf-linux-x86_64.tar.gz
             tar xzf honeybeepf-linux-x86_64.tar.gz
             cd honeybeepf-x86_64
             
@@ -250,3 +297,7 @@ jobs:
             ```bash
             sha256sum -c checksums.sha256
             ```
+            
+            ### Changes
+            
+            See [commit history](https://github.com/${{ github.repository }}/compare/${{ steps.get_tag.outputs.latest_tag }}...${{ steps.bump.outputs.new_version }}) for details.
