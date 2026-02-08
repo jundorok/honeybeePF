@@ -7,7 +7,7 @@ use aya_ebpf::{
 use aya_log_ebpf::info;
 use honeybeepf_common::BlockIoEvent;
 
-use crate::probes::{emit_event, HoneyBeeEvent};
+use crate::probes::{HoneyBeeEvent, emit_event};
 
 const MAX_EVENT_SIZE: u32 = 1024 * 1024;
 
@@ -28,13 +28,19 @@ pub fn honeybeepf_block_io_done(ctx: TracePointContext) -> u32 {
 
 #[tracepoint]
 pub fn honeybeepf_block_rq_issue(ctx: TracePointContext) -> u32 {
-    info!(&ctx, "[eBPF] block_rq_issue tracepoint triggered (fallback)");
+    info!(
+        &ctx,
+        "[eBPF] block_rq_issue tracepoint triggered (fallback)"
+    );
     emit_event::<TracePointContext, BlockIoStart>(&BLOCK_IO_EVENTS, &ctx)
 }
 
 #[tracepoint]
 pub fn honeybeepf_block_rq_complete(ctx: TracePointContext) -> u32 {
-    info!(&ctx, "[eBPF] block_rq_complete tracepoint triggered (fallback)");
+    info!(
+        &ctx,
+        "[eBPF] block_rq_complete tracepoint triggered (fallback)"
+    );
     emit_event::<TracePointContext, BlockIoDone>(&BLOCK_IO_EVENTS, &ctx)
 }
 
@@ -59,12 +65,17 @@ use honeybeepf_common::{BlockIoEventType, EventMetadata};
 pub struct BlockIoStart(BlockIoEvent);
 
 impl HoneyBeeEvent<TracePointContext> for BlockIoStart {
-    fn metadata(&mut self) -> &mut EventMetadata { self.0.metadata() }
+    fn metadata(&mut self) -> &mut EventMetadata {
+        self.0.metadata()
+    }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
         self.0.fill(ctx)?;
         self.0.event_type = BlockIoEventType::Start as u8;
-        info!(ctx, "[eBPF] BlockIO START event filled: pid={}", self.0.metadata.pid);
+        info!(
+            ctx,
+            "[eBPF] BlockIO START event filled: pid={}", self.0.metadata.pid
+        );
         Ok(())
     }
 }
@@ -73,30 +84,38 @@ impl HoneyBeeEvent<TracePointContext> for BlockIoStart {
 pub struct BlockIoDone(BlockIoEvent);
 
 impl HoneyBeeEvent<TracePointContext> for BlockIoDone {
-    fn metadata(&mut self) -> &mut EventMetadata { self.0.metadata() }
+    fn metadata(&mut self) -> &mut EventMetadata {
+        self.0.metadata()
+    }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
         self.0.fill(ctx)?;
         self.0.event_type = BlockIoEventType::Done as u8;
-        info!(ctx, "[eBPF] BlockIO DONE event filled: pid={}", self.0.metadata.pid);
+        info!(
+            ctx,
+            "[eBPF] BlockIO DONE event filled: pid={}", self.0.metadata.pid
+        );
         Ok(())
     }
 }
 
 impl HoneyBeeEvent<TracePointContext> for BlockIoEvent {
-    fn metadata(&mut self) -> &mut EventMetadata { &mut self.metadata }
+    fn metadata(&mut self) -> &mut EventMetadata {
+        &mut self.metadata
+    }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
         self.init_base();
-        
+
         let header_ptr = ctx.as_ptr() as *const BlockIoTrace;
 
         self.dev = unsafe {
-            aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).dev) as *const u32)
-                .map_err(|_| {
+            aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).dev) as *const u32).map_err(
+                |_| {
                     info!(ctx, "[eBPF] Failed to read dev field");
                     1u32
-                })?
+                },
+            )?
         };
 
         self.sector = unsafe {
@@ -116,11 +135,12 @@ impl HoneyBeeEvent<TracePointContext> for BlockIoEvent {
         };
 
         self.bytes = unsafe {
-            aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).bytes) as *const u32)
-                .map_err(|_| {
+            aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).bytes) as *const u32).map_err(
+                |_| {
                     info!(ctx, "[eBPF] Failed to read bytes field");
                     1u32
-                })?
+                },
+            )?
         };
 
         self.rwbs = unsafe {
@@ -138,12 +158,17 @@ impl HoneyBeeEvent<TracePointContext> for BlockIoEvent {
                     1u32
                 })?
         };
-        
+
         self.event_type = BlockIoEventType::Unknown as u8;
-        
-        info!(ctx, "[eBPF] Event data read successfully: dev={}, sector={}, bytes={}", 
-              self.dev, self.sector, self.bytes);
-        
+
+        info!(
+            ctx,
+            "[eBPF] Event data read successfully: dev={}, sector={}, bytes={}",
+            self.dev,
+            self.sector,
+            self.bytes
+        );
+
         Ok(())
     }
 }

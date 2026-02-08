@@ -91,10 +91,10 @@ mod tests {
             builtin_probes: BuiltinProbes {
                 block_io: Some(true),
                 network_latency: None, // Should default to false (0)
-                gpu_usage: None,        // Should default to false
-                llm: None,               // Should default to false
-                extract_tokens: None,    // Not used in CommonConfig
-                interval: None,          // Should default to constant
+                gpu_usage: None,       // Should default to false
+                llm: None,             // Should default to false
+                extract_tokens: None,  // Not used in CommonConfig
+                interval: None,        // Should default to constant
             },
             custom_probe_config: None,
         };

@@ -1,4 +1,4 @@
-.PHONY: build build-release build-linux test clean package deploy help
+.PHONY: build build-release build-linux test clean package deploy help fmt fmt-check lint
 
 # Default target
 help:
@@ -14,6 +14,9 @@ help:
 	@echo "  clean          Clean build artifacts"
 	@echo "  package        Create distribution package"
 	@echo "  deploy         Deploy to remote host (set HOST=user@server)"
+	@echo "  fmt            Format code"
+	@echo "  fmt-check      Check code formatting (CI)"
+	@echo "  lint           Run clippy linter"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build-release"
@@ -67,3 +70,15 @@ setup:
 	rustup install nightly
 	rustup component add rust-src --toolchain nightly
 	cargo install bpf-linker || true
+
+# Format code
+fmt:
+	cargo fmt --all
+
+# Check formatting (for CI)
+fmt-check:
+	cargo fmt --all -- --check
+
+# Lint with clippy
+lint:
+	cargo clippy --all-targets --all-features -- -D warnings

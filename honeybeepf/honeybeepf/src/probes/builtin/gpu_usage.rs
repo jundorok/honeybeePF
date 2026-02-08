@@ -3,7 +3,7 @@ use aya::Ebpf;
 use honeybeepf_common::{GpuCloseEvent, GpuOpenEvent};
 use log::info;
 
-use crate::probes::{attach_tracepoint, spawn_ringbuf_handler, Probe, TracepointConfig};
+use crate::probes::{Probe, TracepointConfig, attach_tracepoint, spawn_ringbuf_handler};
 
 fn get_gpu_type(filename: &str) -> &'static str {
     if filename.starts_with("/dev/nvidia") {
@@ -81,11 +81,7 @@ impl Probe for GpuUsageProbe {
 
             info!(
                 "GPU_CLOSE pid={} comm={} gpu_index={} fd={} cgroup_id={}",
-                event.metadata.pid,
-                comm,
-                event.gpu_index,
-                event.fd,
-                event.metadata.cgroup_id,
+                event.metadata.pid, comm, event.gpu_index, event.fd, event.metadata.cgroup_id,
             );
         })?;
 

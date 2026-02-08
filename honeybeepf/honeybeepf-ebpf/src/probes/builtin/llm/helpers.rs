@@ -1,9 +1,13 @@
 use aya_ebpf::{
-    helpers::{bpf_get_current_pid_tgid, bpf_ktime_get_ns, bpf_probe_read_user, bpf_probe_read_user_buf, bpf_get_current_comm},
+    helpers::{
+        bpf_get_current_comm, bpf_get_current_pid_tgid, bpf_ktime_get_ns, bpf_probe_read_user,
+        bpf_probe_read_user_buf,
+    },
     programs::RetProbeContext,
 };
 use honeybeepf_common::{LlmEvent, MAX_SSL_BUF_SIZE};
-use crate::probes::builtin::llm::maps::{START_NS, BUFS, READBYTES_PTRS};
+
+use crate::probes::builtin::llm::maps::{BUFS, READBYTES_PTRS, START_NS};
 
 #[inline(always)]
 pub fn get_current_tid() -> u32 {
@@ -42,12 +46,22 @@ impl Session {
 }
 
 pub trait LlmEventExt {
-    fn capture_data(&mut self, ctx: &RetProbeContext, rw: u8, is_handshake: bool) -> Result<(), u32>;
+    fn capture_data(
+        &mut self,
+        ctx: &RetProbeContext,
+        rw: u8,
+        is_handshake: bool,
+    ) -> Result<(), u32>;
 }
 
 impl LlmEventExt for LlmEvent {
     #[inline(always)]
-    fn capture_data(&mut self, ctx: &RetProbeContext, rw: u8, is_handshake: bool) -> Result<(), u32> {
+    fn capture_data(
+        &mut self,
+        ctx: &RetProbeContext,
+        rw: u8,
+        is_handshake: bool,
+    ) -> Result<(), u32> {
         let tid = get_current_tid();
         let (start_ts, buf_addr, len_ptr) = Session::get_info(tid);
 
@@ -63,16 +77,23 @@ impl LlmEventExt for LlmEvent {
 
         self.rw = rw;
         self.is_handshake = if is_handshake { 1 } else { 0 };
-        self.latency_ns = if start_ts > 0 { self.metadata.timestamp - start_ts } else { 0 };
+        self.latency_ns = if start_ts > 0 {
+            self.metadata.timestamp - start_ts
+        } else {
+            0
+        };
 
         let ret: i64 = ctx.ret().ok_or(1u32)?;
         // Filter out errors (ret < 0) and zero-byte results (ret == 0).
         // For SSL_read, ret == 0 indicates clean shutdown - no data to capture.
         // For LLM monitoring, we only care about actual data transfers.
-        if ret <= 0 { return Err(1); }
+        if ret <= 0 {
+            return Err(1);
+        }
 
         self.len = if let Some(lp) = len_ptr {
-            let actual_len: usize = unsafe { bpf_probe_read_user(lp as *const usize) }.map_err(|_| 1u32)?;
+            let actual_len: usize =
+                unsafe { bpf_probe_read_user(lp as *const usize) }.map_err(|_| 1u32)?;
             actual_len as u32
         } else {
             ret as u32
@@ -81,9 +102,8 @@ impl LlmEventExt for LlmEvent {
         if buf_addr > 0 {
             let to_read = core::cmp::min(self.len as usize, MAX_SSL_BUF_SIZE);
             // Read directly into self.buf to avoid 4KB stack allocation
-            let result = unsafe {
-                bpf_probe_read_user_buf(buf_addr as *const u8, &mut self.buf[..to_read])
-            };
+            let result =
+                unsafe { bpf_probe_read_user_buf(buf_addr as *const u8, &mut self.buf[..to_read]) };
             if result.is_ok() {
                 self.buf_filled = 1;
             } else {

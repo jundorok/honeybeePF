@@ -12,7 +12,7 @@ use honeybeepf_common::EventMetadata;
 pub trait HoneyBeeEvent<C> {
     /// Each event must define how to fill its specific fields
     fn fill(&mut self, ctx: &C) -> Result<(), u32>;
-    
+
     // Accessor for common metadata
     fn metadata(&mut self) -> &mut EventMetadata;
 
@@ -37,7 +37,7 @@ pub enum EmitStatus {
 pub fn emit_event<C, T: HoneyBeeEvent<C> + 'static>(ringbuf: &RingBuf, ctx: &C) -> u32 {
     if let Some(mut slot) = ringbuf.reserve::<T>(0) {
         let event = unsafe { &mut *slot.as_mut_ptr() };
-        
+
         // Populate event data
         match event.fill(ctx) {
             Ok(_) => {

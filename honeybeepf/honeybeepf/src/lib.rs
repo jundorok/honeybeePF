@@ -1,17 +1,17 @@
 pub mod settings;
 use anyhow::Result;
-use aya::Ebpf;  // Bpf → Ebpf
-use aya_log::EbpfLogger;  // BpfLogger → EbpfLogger
+use aya::Ebpf; // Bpf → Ebpf
+use aya_log::EbpfLogger; // BpfLogger → EbpfLogger
 use log::{info, warn};
 use tokio::signal;
 
 use crate::settings::Settings;
 
 pub mod probes;
-use crate::probes::builtin::network::NetworkLatencyProbe;
-use crate::probes::builtin::block_io::BlockIoProbe;
-use crate::probes::builtin::gpu_usage::GpuUsageProbe;
-use crate::probes::Probe;
+use crate::probes::{
+    Probe,
+    builtin::{block_io::BlockIoProbe, gpu_usage::GpuUsageProbe, network::NetworkLatencyProbe},
+};
 
 pub struct HoneyBeeEngine {
     pub settings: Settings,
@@ -39,7 +39,12 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
-        if self.settings.builtin_probes.network_latency.unwrap_or(false) {
+        if self
+            .settings
+            .builtin_probes
+            .network_latency
+            .unwrap_or(false)
+        {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
         }
 
