@@ -111,11 +111,11 @@ mod tests {
                 llm: None,             // Should default to false
                 extract_tokens: None,  // Not used in CommonConfig
                 gpu: GpuProbes {
-                    usage: None,       // Should default to false
-                    nccl: None,        // Should default to false
+                    usage: None, // Should default to false
+                    nccl: None,  // Should default to false
                     nccl_lib_path: None,
                 },
-                interval: None,        // Should default to constant
+                interval: None, // Should default to constant
             },
             custom_probe_config: None,
         };

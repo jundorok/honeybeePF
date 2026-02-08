@@ -188,7 +188,6 @@ pub struct ExecEvent {
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for ExecEvent {}
 
-
 /// NCCL operation types for GPU collective communication
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -246,15 +245,15 @@ unsafe impl aya::Pod for PendingNcclOp {}
 #[derive(Clone, Copy)]
 pub struct NcclEvent {
     pub metadata: EventMetadata,
-    pub op_type: u8,       // NcclOpType
+    pub op_type: u8, // NcclOpType
     pub _pad: [u8; 3],
     pub ret_code: i32,
-    pub count: u64,        // Element count
+    pub count: u64,         // Element count
     pub datatype_size: u32, // Bytes per element
     pub _pad2: u32,
-    pub duration_ns: u64,  // Time from entry to exit
+    pub duration_ns: u64,       // Time from entry to exit
     pub bytes_transferred: u64, // count * datatype_size
-    pub comm: [u8; 16],    // Process name
+    pub comm: [u8; 16],         // Process name
 }
 
 impl Default for NcclEvent {

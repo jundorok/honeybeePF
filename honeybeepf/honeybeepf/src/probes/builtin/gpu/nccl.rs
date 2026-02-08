@@ -6,10 +6,7 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use aya::{
-    Ebpf,
-    programs::UProbe,
-};
+use aya::{Ebpf, programs::UProbe};
 use honeybeepf_common::{NcclEvent, NcclOpType};
 use log::{info, warn};
 
@@ -36,7 +33,8 @@ fn find_nccl_library() -> Option<PathBuf> {
         warn!("HONEYBEEPF_NCCL_PATH set but file not found: {}", path);
     }
 
-    if let Some(p) = NCCL_LIB_PATHS.iter()
+    if let Some(p) = NCCL_LIB_PATHS
+        .iter()
         .map(PathBuf::from)
         .find(|p| p.exists())
     {
@@ -181,8 +179,18 @@ impl Probe for NcclCommProbe {
 
         for probe_config in NCCL_PROBES {
             // Both entry and exit must succeed for the probe pair to work
-            let entry_result = attach_uprobe(bpf, probe_config.entry_prog, &nccl_path_str, probe_config.symbol);
-            let exit_result = attach_uprobe(bpf, probe_config.exit_prog, &nccl_path_str, probe_config.symbol);
+            let entry_result = attach_uprobe(
+                bpf,
+                probe_config.entry_prog,
+                &nccl_path_str,
+                probe_config.symbol,
+            );
+            let exit_result = attach_uprobe(
+                bpf,
+                probe_config.exit_prog,
+                &nccl_path_str,
+                probe_config.symbol,
+            );
 
             match (entry_result, exit_result) {
                 (Ok(_), Ok(_)) => {
@@ -190,13 +198,19 @@ impl Probe for NcclCommProbe {
                     attached_count += 1;
                 }
                 (Err(e), _) => {
-                    warn!("  Skipping {}: entry probe failed: {}", probe_config.symbol, e);
+                    warn!(
+                        "  Skipping {}: entry probe failed: {}",
+                        probe_config.symbol, e
+                    );
                 }
                 (_, Err(e)) => {
                     // Entry succeeded but exit failed - this is a problem
                     // The entry probe is already loaded, but without exit it won't emit events
                     // This is acceptable as PendingNcclOp will just accumulate (bounded by MAX_PENDING_OPS)
-                    warn!("  Skipping {}: exit probe failed: {}", probe_config.symbol, e);
+                    warn!(
+                        "  Skipping {}: exit probe failed: {}",
+                        probe_config.symbol, e
+                    );
                 }
             }
         }
@@ -213,7 +227,7 @@ impl Probe for NcclCommProbe {
             let comm = std::str::from_utf8(&event.comm)
                 .unwrap_or("<invalid>")
                 .trim_matches(char::from(0));
-            
+
             let op_type = NcclOpType::from(event.op_type);
             let op_name = op_type_name(op_type);
 
@@ -249,12 +263,7 @@ impl Probe for NcclCommProbe {
 }
 
 /// Attach a uprobe or uretprobe to a function
-fn attach_uprobe(
-    bpf: &mut Ebpf,
-    program_name: &str,
-    target: &str,
-    symbol: &str,
-) -> Result<()> {
+fn attach_uprobe(bpf: &mut Ebpf, program_name: &str, target: &str, symbol: &str) -> Result<()> {
     let program: &mut UProbe = bpf
         .program_mut(program_name)
         .with_context(|| format!("Failed to find program: {}", program_name))?

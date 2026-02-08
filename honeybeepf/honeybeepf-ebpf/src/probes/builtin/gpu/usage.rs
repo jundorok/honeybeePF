@@ -12,8 +12,10 @@ use aya_ebpf::{
 use honeybeepf_common::{EventMetadata, GpuCloseEvent, GpuFdInfo, GpuOpenEvent, PendingGpuOpen};
 
 use super::utils::get_gpu_index;
-use crate::probes::builtin::syscall_types::{SysEnterClose, SysEnterOpenat, SysExitOpenat};
-use crate::probes::HoneyBeeEvent;
+use crate::probes::{
+    HoneyBeeEvent,
+    builtin::syscall_types::{SysEnterClose, SysEnterOpenat, SysExitOpenat},
+};
 
 const MAX_EVENT_SIZE: u32 = 1024 * 1024;
 const MAX_PENDING_OPENS: u32 = 10240;
