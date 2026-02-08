@@ -14,9 +14,9 @@ struct Opt {
 async fn main() -> Result<()> {
     let opt = Opt::parse();
 
-    // Initialize the logging system. 
+    // Initialize the logging system.
     // It prioritizes the RUST_LOG environment variable.
-    // If RUST_LOG is not set, it defaults to 'info' when --verbose is used, 
+    // If RUST_LOG is not set, it defaults to 'info' when --verbose is used,
     // otherwise it defaults to 'warn' to reduce noise.
     tracing_subscriber::fmt()
         .with_env_filter(

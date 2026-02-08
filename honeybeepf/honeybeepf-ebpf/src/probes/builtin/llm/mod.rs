@@ -16,13 +16,13 @@ use aya_ebpf::{
     macros::{uprobe, uretprobe},
     programs::{ProbeContext, RetProbeContext},
 };
-use honeybeepf_common::{LlmEvent, LlmDirection};
+use honeybeepf_common::{LlmDirection, LlmEvent};
 
-pub mod maps;
 mod helpers;
+pub mod maps;
 
+use helpers::{LlmEventExt, Session, get_current_tid};
 use maps::*;
-use helpers::{Session, LlmEventExt, get_current_tid};
 
 /// Entry probe for SSL_read/SSL_write. Captures buffer pointer from arg1.
 /// Session::start overwrites any existing entry, so no clear() needed.

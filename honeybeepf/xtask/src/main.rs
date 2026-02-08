@@ -1,6 +1,8 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::{env, fs};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
@@ -108,14 +110,13 @@ fn project_root() -> PathBuf {
 
 fn build(release: bool, target: Option<&str>) -> Result<()> {
     let root = project_root();
-    
+
     println!("🔨 Building honeybeepf...");
-    
+
     // Determine if we need cross-compilation (Linux target from non-Linux host)
-    let is_cross_compile = target
-        .map(|t| t.contains("linux"))
-        .unwrap_or(false) && !cfg!(target_os = "linux");
-    
+    let is_cross_compile =
+        target.map(|t| t.contains("linux")).unwrap_or(false) && !cfg!(target_os = "linux");
+
     let build_cmd = if is_cross_compile {
         // Check if cross is available
         if which::which("cross").is_ok() {
@@ -131,88 +132,94 @@ fn build(release: bool, target: Option<&str>) -> Result<()> {
     } else {
         "cargo"
     };
-    
+
     let mut cmd = Command::new(build_cmd);
     cmd.current_dir(&root);
     cmd.arg("build");
-    
+
     if release {
         cmd.arg("--release");
     }
-    
+
     if let Some(t) = target {
         cmd.arg("--target").arg(t);
         println!("   Target: {}", t);
     }
-    
+
     cmd.arg("-p").arg("honeybeepf");
-    
+
     let status = cmd.status().context("Failed to run cargo build")?;
-    
+
     if !status.success() {
         bail!("Build failed");
     }
-    
+
     let profile = if release { "release" } else { "debug" };
     let binary_path = if let Some(t) = target {
         root.join("target").join(t).join(profile).join("honeybeepf")
     } else {
         root.join("target").join(profile).join("honeybeepf")
     };
-    
+
     println!("✅ Build complete: {}", binary_path.display());
-    
+
     Ok(())
 }
 
-fn deploy(host: &str, remote_path: &str, release: bool, target: Option<&str>, restart: bool) -> Result<()> {
+fn deploy(
+    host: &str,
+    remote_path: &str,
+    release: bool,
+    target: Option<&str>,
+    restart: bool,
+) -> Result<()> {
     // First build
     build(release, target)?;
-    
+
     let root = project_root();
     let profile = if release { "release" } else { "debug" };
-    
+
     let binary_path = if let Some(t) = target {
         root.join("target").join(t).join(profile).join("honeybeepf")
     } else {
         root.join("target").join(profile).join("honeybeepf")
     };
-    
+
     if !binary_path.exists() {
         bail!("Binary not found at: {}", binary_path.display());
     }
-    
+
     println!("📦 Deploying to {}:{}", host, remote_path);
-    
+
     // Copy binary using scp
     let status = Command::new("scp")
         .arg(&binary_path)
         .arg(format!("{}:/tmp/honeybeepf.tmp", host))
         .status()
         .context("Failed to run scp")?;
-    
+
     if !status.success() {
         bail!("scp failed");
     }
-    
+
     // Move to final location with sudo
     let move_cmd = format!(
         "sudo mv /tmp/honeybeepf.tmp {} && sudo chmod +x {}",
         remote_path, remote_path
     );
-    
+
     let status = Command::new("ssh")
         .arg(host)
         .arg(&move_cmd)
         .status()
         .context("Failed to run ssh command")?;
-    
+
     if !status.success() {
         bail!("Failed to move binary to final location");
     }
-    
+
     println!("✅ Deployed to {}:{}", host, remote_path);
-    
+
     // Optionally restart service
     if restart {
         println!("🔄 Restarting honeybeepf service...");
@@ -221,22 +228,22 @@ fn deploy(host: &str, remote_path: &str, release: bool, target: Option<&str>, re
             .arg("sudo systemctl restart honeybeepf || true")
             .status()
             .context("Failed to restart service")?;
-        
+
         if status.success() {
             println!("✅ Service restarted");
         } else {
             println!("⚠️  Service restart failed (service might not exist)");
         }
     }
-    
+
     Ok(())
 }
 
 fn install_service(host: &str, config: Option<&str>) -> Result<()> {
     let service_content = generate_systemd_service(config);
-    
+
     println!("📝 Installing systemd service on {}...", host);
-    
+
     // Write service file via ssh
     let escaped_content = service_content.replace("'", "'\\''");
     let cmd = format!(
@@ -245,20 +252,23 @@ fn install_service(host: &str, config: Option<&str>) -> Result<()> {
          sudo systemctl enable honeybeepf",
         escaped_content
     );
-    
+
     let status = Command::new("ssh")
         .arg(host)
         .arg(&cmd)
         .status()
         .context("Failed to install service")?;
-    
+
     if !status.success() {
         bail!("Failed to install systemd service");
     }
-    
+
     println!("✅ Systemd service installed and enabled");
-    println!("   Start with: ssh {} sudo systemctl start honeybeepf", host);
-    
+    println!(
+        "   Start with: ssh {} sudo systemctl start honeybeepf",
+        host
+    );
+
     Ok(())
 }
 
@@ -266,7 +276,7 @@ fn generate_systemd_service(config: Option<&str>) -> String {
     let env_line = config
         .map(|c| format!("EnvironmentFile={}", c))
         .unwrap_or_default();
-    
+
     format!(
         r#"[Unit]
 Description=HoneybeePF eBPF Monitoring
@@ -294,40 +304,40 @@ WantedBy=multi-user.target
 fn package(target: Option<&str>, output_dir: &str) -> Result<()> {
     // Build release
     build(true, target)?;
-    
+
     let root = project_root();
     let output_path = root.join(output_dir);
-    
+
     fs::create_dir_all(&output_path).context("Failed to create output directory")?;
-    
+
     let profile = "release";
     let binary_path = if let Some(t) = target {
         root.join("target").join(t).join(profile).join("honeybeepf")
     } else {
         root.join("target").join(profile).join("honeybeepf")
     };
-    
+
     if !binary_path.exists() {
         bail!("Binary not found at: {}", binary_path.display());
     }
-    
+
     // Determine package name
     let arch = target.unwrap_or(std::env::consts::ARCH);
     let version = env!("CARGO_PKG_VERSION");
     let package_name = format!("honeybeepf-{}-{}", version, arch);
-    
+
     let package_dir = output_path.join(&package_name);
     fs::create_dir_all(&package_dir)?;
-    
+
     // Copy binary
     fs::copy(&binary_path, package_dir.join("honeybeepf"))?;
-    
+
     // Copy example.env
     let env_example = root.join("example.env");
     if env_example.exists() {
         fs::copy(&env_example, package_dir.join("honeybeepf.env.example"))?;
     }
-    
+
     // Generate install script
     let install_script = r#"#!/bin/bash
 set -e
@@ -354,9 +364,9 @@ echo ""
 echo "To install as a systemd service, run:"
 echo "  sudo ./install-service.sh"
 "#;
-    
+
     fs::write(package_dir.join("install.sh"), install_script)?;
-    
+
     // Generate service install script
     let service_script = format!(
         r#"#!/bin/bash
@@ -375,26 +385,26 @@ echo "   Start with: sudo systemctl start honeybeepf"
 "#,
         generate_systemd_service(Some("/etc/honeybeepf/honeybeepf.env"))
     );
-    
+
     fs::write(package_dir.join("install-service.sh"), service_script)?;
-    
+
     // Create tarball
     let tarball = output_path.join(format!("{}.tar.gz", package_name));
-    
+
     let status = Command::new("tar")
         .current_dir(&output_path)
         .args(&["-czf", &tarball.to_string_lossy(), &package_name])
         .status()
         .context("Failed to create tarball")?;
-    
+
     if !status.success() {
         bail!("Failed to create tarball");
     }
-    
+
     // Cleanup directory
     fs::remove_dir_all(&package_dir)?;
-    
+
     println!("✅ Package created: {}", tarball.display());
-    
+
     Ok(())
 }

@@ -7,9 +7,11 @@ use aya_ebpf::{
 };
 use honeybeepf_common::{EventMetadata, GpuCloseEvent, GpuFdInfo, GpuOpenEvent, PendingGpuOpen};
 
+use super::{
+    gpu_utils::get_gpu_index,
+    syscall_types::{SysEnterClose, SysEnterOpenat, SysExitOpenat},
+};
 use crate::probes::HoneyBeeEvent;
-use super::gpu_utils::get_gpu_index;
-use super::syscall_types::{SysEnterClose, SysEnterOpenat, SysExitOpenat};
 
 const MAX_EVENT_SIZE: u32 = 1024 * 1024;
 const MAX_PENDING_OPENS: u32 = 10240;
@@ -30,7 +32,8 @@ pub static GPU_CLOSE_EVENTS: RingBuf = RingBuf::with_byte_size(MAX_EVENT_SIZE, 0
 
 /// Map to store pending GPU opens (key: tid, value: PendingGpuOpen)
 #[map]
-pub static PENDING_GPU_OPENS: HashMap<u64, PendingGpuOpen> = HashMap::with_max_entries(MAX_PENDING_OPENS, 0);
+pub static PENDING_GPU_OPENS: HashMap<u64, PendingGpuOpen> =
+    HashMap::with_max_entries(MAX_PENDING_OPENS, 0);
 
 /// Map to track GPU file descriptors (key: pid << 32 | fd, value: GpuFdInfo)
 #[map]
@@ -69,7 +72,7 @@ pub fn honeybeepf_gpu_open_enter(ctx: TracePointContext) -> u32 {
 
 fn try_gpu_open_enter(ctx: &TracePointContext) -> Result<(), u32> {
     let header_ptr = ctx.as_ptr() as *const SysEnterOpenat;
-    
+
     // Read filename pointer
     let filename_ptr: u64 = unsafe {
         aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).filename) as *const u64)
@@ -107,7 +110,8 @@ fn try_gpu_open_enter(ctx: &TracePointContext) -> Result<(), u32> {
         filename: filename_buf,
     };
 
-    PENDING_GPU_OPENS.insert(&tid, &pending, 0)
+    PENDING_GPU_OPENS
+        .insert(&tid, &pending, 0)
         .map_err(|_| EmitGpuStatus::Failure as u32)?;
 
     Ok(())
@@ -124,10 +128,12 @@ pub fn honeybeepf_gpu_open_exit(ctx: TracePointContext) -> u32 {
 
 fn try_gpu_open_exit(ctx: &TracePointContext) -> Result<(), u32> {
     let tid = ctx.tgid() as u64;
-    
+
     // Check if we have a pending GPU open for this thread
     let pending = unsafe {
-        PENDING_GPU_OPENS.get(&tid).ok_or(EmitGpuStatus::NotGpuDevice as u32)?
+        PENDING_GPU_OPENS
+            .get(&tid)
+            .ok_or(EmitGpuStatus::NotGpuDevice as u32)?
     };
 
     // Read return value (fd)
@@ -146,7 +152,7 @@ fn try_gpu_open_exit(ctx: &TracePointContext) -> Result<(), u32> {
     }
 
     let pid = ctx.tgid();
-    
+
     // Store fd -> gpu_index mapping for close tracking
     let fd_key = ((pid as u64) << 32) | (fd as u32 as u64);
     let fd_info = GpuFdInfo {
@@ -158,7 +164,7 @@ fn try_gpu_open_exit(ctx: &TracePointContext) -> Result<(), u32> {
     // Emit GPU open event
     if let Some(mut slot) = GPU_OPEN_EVENTS.reserve::<GpuOpenEvent>(0) {
         let event = unsafe { &mut *slot.as_mut_ptr() };
-        
+
         if event.fill(ctx).is_err() {
             slot.discard(0);
             return Err(EmitGpuStatus::Failure as u32);
@@ -187,7 +193,7 @@ pub fn honeybeepf_gpu_close(ctx: TracePointContext) -> u32 {
 
 fn try_gpu_close(ctx: &TracePointContext) -> Result<(), u32> {
     let header_ptr = ctx.as_ptr() as *const SysEnterClose;
-    
+
     // Read fd being closed
     let fd: i64 = unsafe {
         aya_ebpf::helpers::bpf_probe_read_kernel(&((*header_ptr).fd) as *const i64)
@@ -203,7 +209,9 @@ fn try_gpu_close(ctx: &TracePointContext) -> Result<(), u32> {
 
     // Check if this fd is a GPU device
     let fd_info = unsafe {
-        GPU_FD_MAP.get(&fd_key).ok_or(EmitGpuStatus::NotGpuDevice as u32)?
+        GPU_FD_MAP
+            .get(&fd_key)
+            .ok_or(EmitGpuStatus::NotGpuDevice as u32)?
     };
 
     let gpu_index = fd_info.gpu_index;
@@ -214,7 +222,7 @@ fn try_gpu_close(ctx: &TracePointContext) -> Result<(), u32> {
     // Emit GPU close event
     if let Some(mut slot) = GPU_CLOSE_EVENTS.reserve::<GpuCloseEvent>(0) {
         let event = unsafe { &mut *slot.as_mut_ptr() };
-        
+
         if event.fill(ctx).is_err() {
             slot.discard(0);
             return Err(EmitGpuStatus::Failure as u32);

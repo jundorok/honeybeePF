@@ -1,10 +1,8 @@
+use std::{path::Path, time::Duration};
+
 use anyhow::{Context, Result};
-use aya::maps::RingBuf;
-use aya::programs::TracePoint;
-use aya::Ebpf;
+use aya::{Ebpf, maps::RingBuf, programs::TracePoint};
 use log::{info, warn};
-use std::path::Path;
-use std::time::Duration;
 
 pub mod builtin;
 pub mod custom;
@@ -59,8 +57,7 @@ where
     T: Copy + Send + 'static,
     F: Fn(T) + Send + 'static,
 {
-    let mut ring_buf =
-        RingBuf::try_from(bpf.take_map(map_name).context("Failed to get map")?)?;
+    let mut ring_buf = RingBuf::try_from(bpf.take_map(map_name).context("Failed to get map")?)?;
     tokio::task::spawn_blocking(move || {
         loop {
             let mut has_work = false;

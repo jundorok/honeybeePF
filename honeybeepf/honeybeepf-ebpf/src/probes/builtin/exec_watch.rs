@@ -4,12 +4,13 @@
 //! attachment of SSL probes to newly started processes.
 
 use aya_ebpf::{
+    helpers::bpf_get_current_pid_tgid,
     macros::{map, tracepoint},
     maps::RingBuf,
     programs::TracePointContext,
-    helpers::bpf_get_current_pid_tgid,
 };
 use honeybeepf_common::ExecEvent;
+
 use super::llm::maps::EXEC_RINGBUF_SIZE;
 
 #[map]

@@ -54,7 +54,7 @@ impl Settings {
             probe_network_latency: probe_network_latency as u8,
             probe_llm: probe_llm as u8,
             probe_gpu_usage: probe_gpu_usage as u8,
-            probe_interval: probe_interval as u32,
+            probe_interval,
         }
     }
 }
@@ -91,10 +91,10 @@ mod tests {
             builtin_probes: BuiltinProbes {
                 block_io: Some(true),
                 network_latency: None, // Should default to false (0)
-                gpu_usage: None,        // Should default to false
-                llm: None,               // Should default to false
-                extract_tokens: None,    // Not used in CommonConfig
-                interval: None,          // Should default to constant
+                gpu_usage: None,       // Should default to false
+                llm: None,             // Should default to false
+                extract_tokens: None,  // Not used in CommonConfig
+                interval: None,        // Should default to constant
             },
             custom_probe_config: None,
         };

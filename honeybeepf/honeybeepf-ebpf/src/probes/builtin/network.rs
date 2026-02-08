@@ -1,8 +1,8 @@
 use aya_ebpf::{
+    helpers::bpf_probe_read_user,
     macros::{map, tracepoint},
     maps::RingBuf,
     programs::TracePointContext,
-    helpers::{bpf_probe_read_user},
 };
 use honeybeepf_common::ConnectionEvent;
 
@@ -17,7 +17,7 @@ struct SockaddrIn {
     sin_zero: [u8; 8],
 }
 
-use crate::probes::{emit_event, HoneyBeeEvent};
+use crate::probes::{HoneyBeeEvent, emit_event};
 
 #[map]
 static NETWORK_EVENTS: RingBuf = RingBuf::with_byte_size(MAX_EVENT_SIZE, 0);
@@ -30,23 +30,21 @@ pub fn honeybeepf(ctx: TracePointContext) -> u32 {
 use honeybeepf_common::EventMetadata;
 
 impl HoneyBeeEvent<TracePointContext> for ConnectionEvent {
-    fn metadata(&mut self) -> &mut EventMetadata { &mut self.metadata }
+    fn metadata(&mut self) -> &mut EventMetadata {
+        &mut self.metadata
+    }
 
     fn fill(&mut self, ctx: &TracePointContext) -> Result<(), u32> {
         self.init_base();
 
-        let sockaddr_ptr: u64 = unsafe {
-            ctx.read_at(24).map_err(|_| 1u32)?
-        };
+        let sockaddr_ptr: u64 = unsafe { ctx.read_at(24).map_err(|_| 1u32)? };
 
         if sockaddr_ptr == 0 {
             return Err(1);
         }
 
-        let sa_family: u16 = unsafe {
-            bpf_probe_read_user(sockaddr_ptr as *const u16)
-                .map_err(|_| 1u32)?
-        };
+        let sa_family: u16 =
+            unsafe { bpf_probe_read_user(sockaddr_ptr as *const u16).map_err(|_| 1u32)? };
 
         self.address_family = sa_family;
         self.dest_addr = 0;
@@ -54,8 +52,7 @@ impl HoneyBeeEvent<TracePointContext> for ConnectionEvent {
 
         if sa_family == AF_INET {
             let sockaddr = unsafe {
-                bpf_probe_read_user(sockaddr_ptr as *const SockaddrIn)
-                    .map_err(|_| 1u32)?
+                bpf_probe_read_user(sockaddr_ptr as *const SockaddrIn).map_err(|_| 1u32)?
             };
             self.dest_port = sockaddr.sin_port;
             self.dest_addr = sockaddr.sin_addr;
