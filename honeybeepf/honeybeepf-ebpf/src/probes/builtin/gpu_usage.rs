@@ -36,7 +36,18 @@ pub static PENDING_GPU_OPENS: HashMap<u64, PendingGpuOpen> = HashMap::with_max_e
 #[map]
 pub static GPU_FD_MAP: HashMap<u64, GpuFdInfo> = HashMap::with_max_entries(MAX_GPU_FDS, 0);
 
-impl HoneyBeeEvent for GpuOpenEvent {
+impl HoneyBeeEvent<TracePointContext> for GpuOpenEvent {
+    fn metadata(&mut self) -> &mut EventMetadata {
+        &mut self.metadata
+    }
+
+    fn fill(&mut self, _ctx: &TracePointContext) -> Result<(), u32> {
+        self.init_base();
+        Ok(())
+    }
+}
+
+impl HoneyBeeEvent<TracePointContext> for GpuCloseEvent {
     fn metadata(&mut self) -> &mut EventMetadata {
         &mut self.metadata
     }
