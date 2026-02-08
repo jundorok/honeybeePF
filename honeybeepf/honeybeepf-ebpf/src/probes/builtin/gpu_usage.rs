@@ -47,17 +47,6 @@ impl HoneyBeeEvent for GpuOpenEvent {
     }
 }
 
-impl HoneyBeeEvent for GpuCloseEvent {
-    fn metadata(&mut self) -> &mut EventMetadata {
-        &mut self.metadata
-    }
-
-    fn fill(&mut self, _ctx: &TracePointContext) -> Result<(), u32> {
-        self.init_base();
-        Ok(())
-    }
-}
-
 /// sys_enter_openat: Check if GPU device and store pending info
 #[tracepoint]
 pub fn honeybeepf_gpu_open_enter(ctx: TracePointContext) -> u32 {
