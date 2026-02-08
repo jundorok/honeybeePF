@@ -41,7 +41,6 @@ impl Settings {
         // Convert Option<bool> / Option<u32> to primitive POD types
         let probe_block_io = self.builtin_probes.block_io.unwrap_or(false);
         let probe_network_latency = self.builtin_probes.network_latency.unwrap_or(false);
-        let probe_gpu_open = self.builtin_probes.gpu_open.unwrap_or(false);
         let probe_gpu_usage = self.builtin_probes.gpu_usage.unwrap_or(false);
         let probe_llm = self.builtin_probes.llm.unwrap_or(false);
         // Use a sensible non-zero default interval (in seconds) when not configured
@@ -55,7 +54,6 @@ impl Settings {
             probe_network_latency: probe_network_latency as u8,
             probe_llm: probe_llm as u8,
             probe_gpu_usage: probe_gpu_usage as u8,
-            probe_llm: probe_llm as u8,
             probe_interval: probe_interval as u32,
         }
     }
