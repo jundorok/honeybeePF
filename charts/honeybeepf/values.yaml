@@ -59,6 +59,7 @@ builtinProbes:
     enabled: false
   interval: 1000
 
+
 customProbes:
   kprobes: []
   uprobes: []
