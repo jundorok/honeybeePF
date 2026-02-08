@@ -37,6 +37,18 @@ pub trait Probe {
     fn attach(&self, bpf: &mut Ebpf) -> Result<()>;
 }
 
+/// Shared information about a process to avoid redundant I/O in discovery.
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub libs: std::collections::HashSet<String>,
+}
+
+/// A probe that needs to react to new process execution events (e.g. uprobes on lazy-loaded libs).
+pub trait DynamicProbe: Probe {
+    /// Called when a new process is executed, providing shared process info.
+    fn on_exec(&self, bpf: &mut Ebpf, process_info: &ProcessInfo) -> Result<()>;
+}
+
 pub struct TracepointConfig<'a> {
     pub program_name: &'a str,
     pub category: &'a str,

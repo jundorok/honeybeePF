@@ -16,9 +16,9 @@ use log::{info, warn};
 use processor::StreamProcessor;
 use types::LlmDirection;
 
+use crate::probes::{DynamicProbe, Probe, ProcessInfo, attach_uprobe, spawn_ringbuf_handler};
 // Re-export exec watch types and functions for lib.rs
 pub use crate::probes::{ExecNotify, ExecPidQueue, setup_exec_watch};
-use crate::probes::{Probe, attach_uprobe, spawn_ringbuf_handler};
 
 // Timing constants
 const CLEANUP_INTERVAL_SECS: u64 = 30; // How often to run cleanup
@@ -54,37 +54,52 @@ pub fn attach_probes_to_path(bpf: &mut Ebpf, libssl_path: &str) -> Result<()> {
     Ok(())
 }
 
-/// Scan only specific PIDs for new SSL libraries and attach probes to any not yet in `known`.
-pub fn attach_new_targets_for_pids(
-    bpf: &mut Ebpf,
-    known: &mut HashSet<String>,
-    pids: &[u32],
-) -> Result<()> {
-    let targets = discovery::find_targets_for_pids(pids)?;
+// attach_new_targets_for_pids removed as unnecessary with ProcessInfo optimization
 
-    for path in targets {
-        if path.contains("libcrypto") {
-            continue;
-        }
-        if known.contains(&path) {
-            continue;
-        }
-
-        info!("[Re-discovery] New SSL library found: {}", path);
-        match attach_probes_to_path(bpf, &path) {
-            Ok(()) => {
-                known.insert(path);
-            }
-            Err(e) => {
-                warn!("[Re-discovery] Failed to attach to {}: {}", path, e);
-            }
-        }
-    }
-
-    Ok(())
+pub struct LlmProbe {
+    known_targets: Arc<Mutex<HashSet<String>>>,
 }
 
-pub struct LlmProbe;
+impl Default for LlmProbe {
+    fn default() -> Self {
+        Self {
+            known_targets: Arc::new(Mutex::new(HashSet::new())),
+        }
+    }
+}
+
+impl DynamicProbe for LlmProbe {
+    fn on_exec(&self, bpf: &mut Ebpf, process_info: &ProcessInfo) -> Result<()> {
+        let mut known = self.known_targets.lock().unwrap();
+
+        for path in &process_info.libs {
+            // Simple heuristic to match libssl (optimization over regex)
+            if !path.contains("libssl") {
+                continue;
+            }
+            if path.contains("libcrypto") {
+                continue;
+            }
+            if known.contains(path) {
+                continue;
+            }
+
+            info!(
+                "[Re-discovery] New SSL library found: {} (PID: {})",
+                path, process_info.pid
+            );
+            match attach_probes_to_path(bpf, path) {
+                Ok(()) => {
+                    known.insert(path.clone());
+                }
+                Err(e) => {
+                    warn!("[Re-discovery] Failed to attach to {}: {}", path, e);
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 // Shared state
 type StreamMap = Arc<Mutex<HashMap<(u32, u32), StreamProcessor>>>;
@@ -96,6 +111,14 @@ impl Probe for LlmProbe {
         if targets.is_empty() {
             warn!("No targets found. LLM probing disabled.");
             return Ok(());
+        }
+
+        // Seed known targets
+        {
+            let mut known = self.known_targets.lock().unwrap();
+            for t in &targets {
+                known.insert(t.clone());
+            }
         }
 
         for path in &targets {

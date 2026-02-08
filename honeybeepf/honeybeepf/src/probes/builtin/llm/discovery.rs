@@ -14,8 +14,3 @@ static SSL_PATTERN: Lazy<Regex> =
 pub fn find_all_targets() -> Result<HashSet<String>> {
     discovery::find_libraries_all(&SSL_PATTERN, Some("libssl.so"))
 }
-
-/// Find SSL libraries for specific PIDs only (for re-discovery).
-pub fn find_targets_for_pids(pids: &[u32]) -> Result<HashSet<String>> {
-    discovery::find_libraries_for_pids(pids, &SSL_PATTERN)
-}
