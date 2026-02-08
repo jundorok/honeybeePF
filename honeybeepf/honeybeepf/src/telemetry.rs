@@ -1,7 +1,7 @@
 //! OpenTelemetry metrics export module
 //!
 //! Exports eBPF metrics collected by honeybeepf to OpenTelemetry Collector.
-//! 
+//!
 //! ## OTLP Endpoint Priority
 //! 1. Helm values (injected via environment variables)
 //! 2. Direct environment variable configuration
@@ -10,10 +10,10 @@
 use anyhow::{Context, Result};
 use log::info;
 use opentelemetry::metrics::{Counter, Histogram, Meter};
-use opentelemetry::{global, KeyValue};
+use opentelemetry::{KeyValue, global};
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::metrics::{PeriodicReader, SdkMeterProvider};
 use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
@@ -35,7 +35,7 @@ fn active_probes_map() -> &'static RwLock<HashMap<String, u64>> {
 }
 
 /// honeybeepf metrics collection
-/// 
+///
 /// Note: Do NOT add _total suffix to Counter names (Prometheus adds it automatically)
 pub struct HoneyBeeMetrics {
     pub block_io_events: Counter<u64>,
@@ -88,7 +88,7 @@ fn get_otlp_endpoint() -> Option<String> {
     if endpoint.is_empty() {
         return None;
     }
-    
+
     if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
         Some(format!("http://{}", endpoint))
     } else {
@@ -97,7 +97,7 @@ fn get_otlp_endpoint() -> Option<String> {
 }
 
 /// Initialize OpenTelemetry metrics provider
-/// 
+///
 /// Configures metrics export to OTLP Collector via gRPC.
 /// Skips initialization if OTEL_EXPORTER_OTLP_ENDPOINT is not set.
 pub fn init_metrics() -> Result<()> {
@@ -108,10 +108,10 @@ pub fn init_metrics() -> Result<()> {
             return Ok(());
         }
     };
-    
+
     info!("Initializing OpenTelemetry metrics exporter");
     info!("OTLP endpoint: {}", endpoint);
-    
+
     let exporter = opentelemetry_otlp::MetricExporter::builder()
         .with_tonic()
         .with_endpoint(&endpoint)
@@ -138,7 +138,7 @@ pub fn init_metrics() -> Result<()> {
 
     // Meter name is used as prefix only
     let meter = global::meter("honeybeepf");
-    
+
     // This is the correct way to export gauge metrics via OTLP
     let _active_probes_gauge = meter
         .u64_observable_gauge("active_probes")
@@ -147,10 +147,7 @@ pub fn init_metrics() -> Result<()> {
         .with_callback(|observer| {
             if let Ok(probes) = active_probes_map().read() {
                 for (probe_name, count) in probes.iter() {
-                    observer.observe(
-                        *count,
-                        &[KeyValue::new("probe", probe_name.clone())],
-                    );
+                    observer.observe(*count, &[KeyValue::new("probe", probe_name.clone())]);
                 }
             }
         })
@@ -166,21 +163,16 @@ pub fn metrics() -> Option<&'static HoneyBeeMetrics> {
     METRICS.get()
 }
 
-pub fn record_block_io_event(
-    event_type: &str,
-    bytes: u64,
-    latency_ns: Option<u64>,
-    device: &str,
-) {
+pub fn record_block_io_event(event_type: &str, bytes: u64, latency_ns: Option<u64>, device: &str) {
     if let Some(m) = metrics() {
         let attrs = [
             KeyValue::new("event_type", event_type.to_string()),
             KeyValue::new("device", device.to_string()),
         ];
-        
+
         m.block_io_events.add(1, &attrs);
         m.block_io_bytes.add(bytes, &attrs);
-        
+
         if let Some(lat) = latency_ns {
             m.block_io_latency_ns.record(lat, &attrs);
         }
@@ -233,7 +225,7 @@ mod tests {
     #[serial]
     fn test_get_otlp_endpoint_not_set() {
         // Returns None if environment variable is not set
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
         assert!(get_otlp_endpoint().is_none());
     }
 
@@ -243,26 +235,26 @@ mod tests {
         // Returns None if environment variable is empty
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "");
         assert!(get_otlp_endpoint().is_none());
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
     }
 
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_from_env() {
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
-        
+
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, Some("http://custom:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
     }
 
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_adds_http_prefix() {
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
-        
+
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, Some("http://collector:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT"); 
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
     }
 }
