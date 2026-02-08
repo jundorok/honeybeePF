@@ -1,4 +1,4 @@
-.PHONY: build build-release build-linux test clean package deploy help fmt fmt-check lint
+.PHONY: build build-release build-linux test clean package deploy help fmt fmt-check lint lint-fix lint-all lint-fix-all
 
 # Default target
 help:
@@ -16,7 +16,10 @@ help:
 	@echo "  deploy         Deploy to remote host (set HOST=user@server)"
 	@echo "  fmt            Format code"
 	@echo "  fmt-check      Check code formatting (CI)"
-	@echo "  lint           Run clippy linter"
+	@echo "  lint           Run clippy (common crate only, works on macOS)"
+	@echo "  lint-fix       Run clippy auto-fix (common crate only)"
+	@echo "  lint-all       Run clippy on all crates (Linux only)"
+	@echo "  lint-fix-all   Run clippy auto-fix on all (Linux only)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build-release"
@@ -79,6 +82,18 @@ fmt:
 fmt-check:
 	cargo fmt --all -- --check
 
-# Lint with clippy
+# Lint with clippy (excludes eBPF packages that only compile on Linux)
 lint:
+	cargo clippy -p honeybeepf-common -- -D warnings
+
+# Lint with auto-fix
+lint-fix:
+	cargo clippy --fix -p honeybeepf-common --allow-dirty --allow-staged
+
+# Lint all (Linux only - includes eBPF and userspace)
+lint-all:
 	cargo clippy --all-targets --all-features -- -D warnings
+
+# Lint all with auto-fix (Linux only)
+lint-fix-all:
+	cargo clippy --fix --all-targets --all-features --allow-dirty --allow-staged

@@ -37,7 +37,7 @@ fn main() {
         .current_dir(&ebpf_dir)
         .env("RUSTUP_TOOLCHAIN", "nightly")
         .env("CARGO_TARGET_DIR", &ebpf_target_dir) // Separate target dir
-        .args(&[
+        .args([
             "build",
             "--release",
             &format!("--target={}", bpf_target),
