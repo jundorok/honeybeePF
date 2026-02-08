@@ -1,9 +1,11 @@
 pub mod settings;
+pub mod telemetry;
+
 use std::{collections::HashSet, sync::atomic::Ordering, time::Duration};
 
 use anyhow::Result;
-use aya::Ebpf; // Bpf → Ebpf
-use aya_log::EbpfLogger; // BpfLogger → EbpfLogger
+use aya::Ebpf;
+use aya_log::EbpfLogger;
 use log::{info, warn};
 use tokio::signal;
 
@@ -40,6 +42,13 @@ impl HoneyBeeEngine {
     }
 
     pub async fn run(mut self) -> Result<()> {
+        if let Err(e) = telemetry::init_metrics() {
+            warn!(
+                "Failed to initialize OpenTelemetry metrics: {}. Metrics will not be exported.",
+                e
+            );
+        }
+
         self.attach_probes()?;
 
         // Start LLM dynamic discovery if enabled
@@ -90,6 +99,8 @@ impl HoneyBeeEngine {
             }
         }
 
+        telemetry::shutdown_metrics();
+
         Ok(())
     }
 
@@ -101,18 +112,23 @@ impl HoneyBeeEngine {
             .unwrap_or(false)
         {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
+            // Note: network_latency probe currently logs connection events only,
+            // latency measurement not yet implemented
         }
 
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
             BlockIoProbe.attach(&mut self.bpf)?;
+            telemetry::record_active_probe("block_io", 1);
         }
 
         if self.settings.builtin_probes.gpu_usage.unwrap_or(false) {
             GpuUsageProbe.attach(&mut self.bpf)?;
+            telemetry::record_active_probe("gpu_usage", 1);
         }
 
         if self.settings.builtin_probes.llm.unwrap_or(false) {
             LlmProbe.attach(&mut self.bpf)?;
+            telemetry::record_active_probe("llm", 1);
         }
 
         Ok(())

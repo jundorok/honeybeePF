@@ -1,58 +1,35 @@
-# Name overrides for resource naming flexibility
 nameOverride: ""
 fullnameOverride: ""
 
-# Image configuration including private registry support
 image:
   repository: "docker.io/dorokrok/honeybeepf"
   tag: "latest"
   pullPolicy: IfNotPresent
-imagePullSecrets: [] # List for private registry credentials
-
-# Annotations for the pod
+imagePullSecrets: [] 
 podAnnotations: {}
-  # testAnnotation: "testValue"
 
-# Metrics exposure for scraping by OpenTelemetry Collector (Prometheus receiver)
-metrics:
-  enabled: true
-  port: 9464
-  path: "/metrics"
-  service:
-    enabled: true
-    type: ClusterIP
-    annotations: {}
-    labels: {}
-  # If want to use ServiceMonitor you must enable ServiceMonitor
-  serviceMonitor:
-    enabled: false
-    interval: 30s
-    scrapeTimeout: 10s
-    labels: {}
-    namespace: ""
+# NOTE: HoneybeePF uses OTLP to send metrics to OTel Collector.
+# Prometheus scrapes the OTel Collector's prometheus exporter (port 8889), 
+# NOT the agent directly. The agent does NOT expose a /metrics endpoint.
+# ServiceMonitor is NOT used - this chart uses annotation-based scraping.
 
-
-# Data Output
 output:
-  # if you want to send data to OpenTelemetry Collector from your application set this values.
   otlp:
-    endpoint: "otel-collector.monitoring.svc:4317"
+    endpoint: ""  # honeybeepf-otel-collector-opentelemetry-collector:4317
+    collectorReleaseName: "honeybeepf-otel-collector"
+    port: 4317
     protocol: "grpc"
-
-
-# Service Account for RBAC permissions
 serviceAccount:
   create: true
   annotations: {}
   name: ""
 
-# Rust Log Level (trace, debug, info, warn, error)
+# Valid values: trace, debug, info, warn, error
 rustLog: "info"
 
-# Hybrid Probe Configuration
 builtinProbes:
   block_io:
-    enabled: false
+    enabled: true
   network_latency:
     enabled: false
   gpu_usage:
@@ -80,7 +57,6 @@ customProbes:
   uprobes: []
   tracepoints: []
 
-# Security Context: Hardened for production
 securityContext:
   privileged: true
   readOnlyRootFilesystem: false
@@ -94,8 +70,6 @@ securityContext:
       - SYS_RESOURCE
       - SYS_PTRACE
       - DAC_OVERRIDE
-
-# Resource limits with robust parsing (quotes)
 resources:
   limits:
     cpu: "1000m"
@@ -104,7 +78,6 @@ resources:
     cpu: "200m"
     memory: "512Mi"
 
-# Scheduling
 nodeSelector:
   kubernetes.io/os: linux
 
