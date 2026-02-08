@@ -53,8 +53,8 @@ contributors to become reviewers. Reviewer status is reviewed quarterly.
 ## Code of Conduct
 
 All community spaces and interactions are governed by the
-[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Incidents can be reported privately
-via `jun.seo.93@proton.me`.
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Incidents can be reported privately via
+[GitHub Issues](https://github.com/jundorok/honeybeePF/issues).
 
 ## Changes to This Document
 

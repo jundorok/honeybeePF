@@ -72,7 +72,7 @@ The agent can be deployed via Helm Charts in Kubernetes environments or as a sta
 
 ## 9. Governance & Community
 - **Code of Conduct:** See [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Report
-	incidents privately to `jun.seo.93@proton.me`.  
+	incidents privately via [GitHub Issues](https://github.com/jundorok/honeybeePF/issues).
 - **Decision Process:** Maintainers document proposals via Issues/Discussions
 	with a 72-hour community review window before landing major changes.  
 - **Meetings:** We host quarterly community syncs announced in GitHub
