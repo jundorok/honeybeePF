@@ -36,7 +36,30 @@ Enhancement suggestions are tracked as GitHub issues. Create an issue and provid
 3. If you've changed APIs, update the documentation.
 4. Ensure the test suite passes.
 5. Make sure your code follows the existing code style.
-6. Issue that pull request!
+6. **Run the pre-PR checklist below** before submitting.
+7. Issue that pull request!
+
+### Pre-PR Checklist
+
+Before submitting a pull request, please run the following commands:
+
+```bash
+cd honeybeepf
+
+# Format code
+make fmt
+
+# Check formatting (CI will fail if this fails)
+make fmt-check
+
+# Run linter
+make lint
+
+# Run tests
+make test
+```
+
+All checks must pass before your PR can be merged.
 
 ## Development Setup
 
