@@ -90,7 +90,6 @@ For additional details, review the [Governance Model](GOVERNANCE.md).
 
 By contributing, you agree that your contributions will be licensed under the project's licenses:
 
-- **Non-eBPF code**: [MIT License](honeybeepf/LICENSE-MIT) or [Apache License 2.0](honeybeepf/LICENSE-APACHE), at your option
-- **eBPF code**: [GPL-2.0](honeybeepf/LICENSE-GPL2) or [MIT License](honeybeepf/LICENSE-MIT), at your option
+- **Non-eBPF code**: [MIT License](honeybeepf/LICENSE-MIT) or [Apache License 2.0](honeybeepf/LICENSE-APACHE)
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this project by you shall be licensed as above, without any additional terms or conditions.
