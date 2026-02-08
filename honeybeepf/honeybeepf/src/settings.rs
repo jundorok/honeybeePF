@@ -92,7 +92,6 @@ mod tests {
                 block_io: Some(true),
                 network_latency: None, // Should default to false (0)
                 gpu_usage: None,        // Should default to false
-                interval: None,        // Should default to constant
                 llm: None,               // Should default to false
                 extract_tokens: None,    // Not used in CommonConfig
                 interval: None,          // Should default to constant
