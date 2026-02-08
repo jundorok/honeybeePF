@@ -7,11 +7,8 @@ const DEFAULT_PROBE_INTERVAL_SECONDS: u32 = 60;
 #[derive(Debug, Deserialize, Clone, Default)]
 #[allow(unused)]
 pub struct GpuProbes {
-    /// GPU usage monitoring (memory, utilization via driver hooks)
     pub usage: Option<bool>,
-    /// NCCL collective communication monitoring (AllReduce, Broadcast, etc.)
     pub nccl: Option<bool>,
-    /// Optional: Override libnccl.so path (auto-detected by default)
     pub nccl_lib_path: Option<String>,
 }
 
@@ -22,7 +19,6 @@ pub struct BuiltinProbes {
     pub network_latency: Option<bool>,
     pub llm: Option<bool>,
     pub extract_tokens: Option<bool>,
-    /// GPU probes (usage + nccl) - hierarchical configuration
     #[serde(default)]
     pub gpu: GpuProbes,
     pub interval: Option<u32>,
