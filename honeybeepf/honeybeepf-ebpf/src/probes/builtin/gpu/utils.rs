@@ -1,3 +1,7 @@
+//! GPU device path utilities.
+//!
+//! Helper functions to parse GPU device paths and extract GPU indices.
+
 pub const NVIDIA_PREFIX: &[u8] = b"/dev/nvidia";
 pub const DRI_RENDER_PREFIX: &[u8] = b"/dev/dri/renderD";
 pub const DRI_CARD_PREFIX: &[u8] = b"/dev/dri/card";

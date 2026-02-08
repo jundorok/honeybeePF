@@ -1,3 +1,7 @@
+//! GPU device open/close tracking probes.
+//!
+//! Monitors GPU device file operations to track which processes are using GPUs.
+
 use aya_ebpf::{
     EbpfContext,
     helpers::{bpf_get_current_comm, bpf_probe_read_user_str_bytes},
@@ -7,10 +11,8 @@ use aya_ebpf::{
 };
 use honeybeepf_common::{EventMetadata, GpuCloseEvent, GpuFdInfo, GpuOpenEvent, PendingGpuOpen};
 
-use super::{
-    gpu_utils::get_gpu_index,
-    syscall_types::{SysEnterClose, SysEnterOpenat, SysExitOpenat},
-};
+use super::utils::get_gpu_index;
+use crate::probes::builtin::syscall_types::{SysEnterClose, SysEnterOpenat, SysExitOpenat};
 use crate::probes::HoneyBeeEvent;
 
 const MAX_EVENT_SIZE: u32 = 1024 * 1024;

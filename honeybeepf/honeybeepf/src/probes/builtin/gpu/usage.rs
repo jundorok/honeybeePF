@@ -1,3 +1,5 @@
+//! Userspace handler for GPU device open/close tracking.
+
 use anyhow::Result;
 use aya::Ebpf;
 use honeybeepf_common::{GpuCloseEvent, GpuOpenEvent};

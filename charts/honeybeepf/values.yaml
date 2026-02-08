@@ -55,8 +55,16 @@ builtinProbes:
     enabled: false
   network_latency:
     enabled: false
-  gpu_usage:
-    enabled: false
+  # GPU probes (hierarchical configuration)
+  gpu:
+    # GPU usage monitoring (memory, utilization)
+    usage:
+      enabled: false
+    # NCCL collective communication monitoring
+    nccl:
+      enabled: false
+      # Optional: Override libnccl.so path (auto-detected by default)
+      # libPath: "/usr/lib/x86_64-linux-gnu/libnccl.so.2"
   interval: 1000
 
 customProbes:

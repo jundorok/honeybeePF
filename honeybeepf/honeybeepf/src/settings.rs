@@ -3,6 +3,18 @@ use serde::Deserialize;
 
 const DEFAULT_PROBE_INTERVAL_SECONDS: u32 = 60;
 
+/// GPU-related probe configuration (hierarchical toggle)
+#[derive(Debug, Deserialize, Clone, Default)]
+#[allow(unused)]
+pub struct GpuProbes {
+    /// GPU usage monitoring (memory, utilization via driver hooks)
+    pub usage: Option<bool>,
+    /// NCCL collective communication monitoring (AllReduce, Broadcast, etc.)
+    pub nccl: Option<bool>,
+    /// Optional: Override libnccl.so path (auto-detected by default)
+    pub nccl_lib_path: Option<String>,
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[allow(unused)]
 pub struct BuiltinProbes {
@@ -10,7 +22,9 @@ pub struct BuiltinProbes {
     pub network_latency: Option<bool>,
     pub llm: Option<bool>,
     pub extract_tokens: Option<bool>,
-    pub gpu_usage: Option<bool>,
+    /// GPU probes (usage + nccl) - hierarchical configuration
+    #[serde(default)]
+    pub gpu: GpuProbes,
     pub interval: Option<u32>,
 }
 
@@ -41,8 +55,9 @@ impl Settings {
         // Convert Option<bool> / Option<u32> to primitive POD types
         let probe_block_io = self.builtin_probes.block_io.unwrap_or(false);
         let probe_network_latency = self.builtin_probes.network_latency.unwrap_or(false);
-        let probe_gpu_usage = self.builtin_probes.gpu_usage.unwrap_or(false);
+        let probe_gpu_usage = self.builtin_probes.gpu.usage.unwrap_or(false);
         let probe_llm = self.builtin_probes.llm.unwrap_or(false);
+        let probe_nccl = self.builtin_probes.gpu.nccl.unwrap_or(false);
         // Use a sensible non-zero default interval (in seconds) when not configured
         let probe_interval = self
             .builtin_probes
@@ -54,6 +69,8 @@ impl Settings {
             probe_network_latency: probe_network_latency as u8,
             probe_llm: probe_llm as u8,
             probe_gpu_usage: probe_gpu_usage as u8,
+            probe_nccl: probe_nccl as u8,
+            _pad: [0; 3],
             probe_interval,
         }
     }
@@ -91,9 +108,13 @@ mod tests {
             builtin_probes: BuiltinProbes {
                 block_io: Some(true),
                 network_latency: None, // Should default to false (0)
-                gpu_usage: None,       // Should default to false
                 llm: None,             // Should default to false
                 extract_tokens: None,  // Not used in CommonConfig
+                gpu: GpuProbes {
+                    usage: None,       // Should default to false
+                    nccl: None,        // Should default to false
+                    nccl_lib_path: None,
+                },
                 interval: None,        // Should default to constant
             },
             custom_probe_config: None,
@@ -104,6 +125,7 @@ mod tests {
         assert_eq!(common.probe_block_io, 1);
         assert_eq!(common.probe_network_latency, 0);
         assert_eq!(common.probe_llm, 0);
+        assert_eq!(common.probe_nccl, 0);
         assert_eq!(common.probe_interval, DEFAULT_PROBE_INTERVAL_SECONDS);
     }
 }
