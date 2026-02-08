@@ -9,7 +9,6 @@ pub struct BuiltinProbes {
     pub block_io: Option<bool>,
     pub network_latency: Option<bool>,
     pub llm: Option<bool>,
-    pub extract_tokens: Option<bool>,
     pub gpu_usage: Option<bool>,
     pub interval: Option<u32>,
 }
@@ -93,7 +92,6 @@ mod tests {
                 network_latency: None, // Should default to false (0)
                 gpu_usage: None,       // Should default to false
                 llm: None,             // Should default to false
-                extract_tokens: None,  // Not used in CommonConfig
                 interval: None,        // Should default to constant
             },
             custom_probe_config: None,

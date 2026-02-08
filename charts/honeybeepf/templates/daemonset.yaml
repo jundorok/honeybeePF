@@ -89,9 +89,6 @@ spec:
             - mountPath: /sys/kernel/debug
               name: debugfs
               readOnly: false
-            - mountPath: /host/proc
-              name: host-proc
-              readOnly: true
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -108,8 +105,4 @@ spec:
         - name: debugfs
           hostPath:
             path: /sys/kernel/debug
-            type: Directory
-        - name: host-proc
-          hostPath:
-            path: /proc
             type: Directory

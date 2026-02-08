@@ -115,8 +115,7 @@ impl HoneyBeeEngine {
         }
 
         if self.settings.builtin_probes.llm.unwrap_or(false) {
-            let extract_tokens = self.settings.builtin_probes.extract_tokens.unwrap_or(true);
-            LlmProbe { extract_tokens }.attach(&mut self.bpf)?;
+            LlmProbe.attach(&mut self.bpf)?;
         }
 
         Ok(())

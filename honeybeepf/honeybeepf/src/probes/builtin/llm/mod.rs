@@ -17,19 +17,11 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::Notify;
-use tiktoken_rs::{cl100k_base, CoreBPE};
-use once_cell::sync::Lazy;
 
 // Queue and timing constants
 const MAX_EXEC_QUEUE_SIZE: usize = 1024;           // Max pending exec PIDs
 const CLEANUP_INTERVAL_SECS: u64 = 30;             // How often to run cleanup
-const LLM_TIMEOUT_SECS: u64 = 60;                  // Log warning if LLM stream incomplete
 const CONNECTION_RETENTION_SECS: u64 = 300;        // Keep idle connections for 5 minutes
-
-// Global tokenizer instance — initialized lazily, panics are caught by callers
-static TOKENIZER: Lazy<Result<CoreBPE, String>> = Lazy::new(|| {
-    cl100k_base().map_err(|e| format!("Failed to load tokenizer: {}", e))
-});
 
 pub fn attach_probes_to_path(bpf: &mut Ebpf, libssl_path: &str) -> Result<()> {
     // SSL_read/SSL_write need BOTH entry (to save buf ptr) and exit (to read data + emit event)
@@ -109,11 +101,7 @@ pub fn setup_exec_watch(bpf: &mut Ebpf) -> Result<(ExecPidQueue, ExecNotify)> {
     Ok((queue, notify))
 }
 
-pub struct LlmProbe {
-    /// Whether to extract token usage from responses (default: true)
-    /// Set to false for lightweight latency-only monitoring
-    pub extract_tokens: bool,
-}
+pub struct LlmProbe;
 
 // Shared state
 type StreamMap = Arc<Mutex<HashMap<(u32, u32), StreamProcessor>>>;
@@ -121,15 +109,12 @@ type StreamMap = Arc<Mutex<HashMap<(u32, u32), StreamProcessor>>>;
 impl Probe for LlmProbe {
     fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
         let targets = discovery::find_all_targets()?;
-        
+
         if targets.is_empty() {
              warn!("No targets found. LLM probing disabled.");
              return Ok(());
         }
 
-        // Eagerly initialize tokenizer and fail fast if it can't load
-        Lazy::force(&TOKENIZER).as_ref().map_err(|e| anyhow::anyhow!("{}", e))?;
-        
         for path in &targets {
              // Skip libcrypto for SSL_* probes as they usually don't contain them
              if path.contains("libcrypto") {
@@ -145,7 +130,6 @@ impl Probe for LlmProbe {
 
         let state: StreamMap = Arc::new(Mutex::new(HashMap::new()));
         let handler_state = state.clone();
-        let extract_tokens = self.extract_tokens;
 
         spawn_ringbuf_handler(bpf, "SSL_EVENTS", move |event: LlmEvent| {
              let direction = LlmDirection::from(event.rw);
@@ -157,11 +141,7 @@ impl Probe for LlmProbe {
              let processor = map.entry(key).or_insert_with(StreamProcessor::new);
 
              let data_len = std::cmp::min(event.len as usize, honeybeepf_common::MAX_SSL_BUF_SIZE);
-             let tokenizer = match TOKENIZER.as_ref() {
-                 Ok(t) => t,
-                 Err(_) => return,
-             };
-             processor.handle_event(direction, &event.buf[..data_len], tokenizer, event.metadata.pid, extract_tokens);
+             processor.handle_event(direction, &event.buf[..data_len], event.metadata.pid);
         })?;
 
         start_cleanup_task(state);
@@ -178,14 +158,8 @@ fn start_cleanup_task(state: StreamMap) {
             let mut map = state.lock().unwrap_or_else(|e| e.into_inner());
             let now = std::time::Instant::now();
 
-            map.retain(|(pid, _), v| {
-                 let duration = now.duration_since(v.last_activity());
-                 if duration.as_secs() > LLM_TIMEOUT_SECS && v.is_llm() {
-                      let tokens = v.est_input_tokens();
-                      warn!("LLM TIMEOUT/LOST | PID: {} | Est. Input Tokens: {} (Incomplete stream — probes may have attached mid-request)", pid, tokens);
-                      return false;
-                 }
-                 duration.as_secs() < CONNECTION_RETENTION_SECS
+            map.retain(|_, v| {
+                 now.duration_since(v.last_activity()).as_secs() < CONNECTION_RETENTION_SECS
             });
         }
     });

@@ -1,5 +1,4 @@
 use std::time::Instant;
-use tiktoken_rs::CoreBPE;
 use log::{info, warn};
 use crate::probes::builtin::llm::types::LlmDirection;
 use crate::probes::builtin::llm::http::{self, ProtocolParser};
@@ -23,7 +22,6 @@ enum ProcessorState {
     ProcessingResponse {
         start_time: Instant,
         parser: Box<dyn ProtocolParser>,
-        est_input_tokens: u64,
     },
     /// Finished or Invalid
     Finished, 
@@ -54,14 +52,7 @@ impl StreamProcessor {
         !matches!(self.state, ProcessorState::Detecting | ProcessorState::Finished)
     }
 
-    pub fn est_input_tokens(&self) -> u64 {
-        match &self.state {
-            ProcessorState::ProcessingResponse { est_input_tokens, .. } => *est_input_tokens,
-            _ => 0,
-        }
-    }
-
-    pub fn handle_event(&mut self, direction: LlmDirection, data: &[u8], bpe: &CoreBPE, pid: u32, extract_tokens: bool) {
+    pub fn handle_event(&mut self, direction: LlmDirection, data: &[u8], pid: u32) {
         self.last_activity = Instant::now();
 
         // Early return if finished (except for new Write which triggers reset)
@@ -134,15 +125,10 @@ impl StreamProcessor {
             // [State 2] Processing Request
             ProcessorState::ProcessingRequest { start_time, parser } => {
                 if direction == LlmDirection::Read {
-                    // Write finished (implied by Read starting), calculate input tokens
-                    let text = parser.extract_request_text(&self.write_buf);
-                    let est_tokens = bpe.encode_with_special_tokens(&text).len() as u64;
-
-                    // Transition to Response phase
+                    // Write finished (implied by Read starting), transition to Response phase
                     ProcessorState::ProcessingResponse {
                         start_time,
                         parser,
-                        est_input_tokens: est_tokens,
                     }
                 } else {
                     // Still writing -> keep state
@@ -151,34 +137,30 @@ impl StreamProcessor {
             },
 
             // [State 3] Processing Response
-            ProcessorState::ProcessingResponse { start_time, parser, est_input_tokens } => {
+            ProcessorState::ProcessingResponse { start_time, parser } => {
                 // Try parsing response
                 if let Some(usage) = parser.parse_response(&self.read_buf) {
                     let latency = start_time.elapsed();
                     let model_str = usage.model.as_deref().unwrap_or("unknown");
 
-                    if !extract_tokens {
-                        // Latency-only mode: skip token details
-                        info!("LLM | PID: {} | Model: {} | Latency: {:.2}s",
+                    if usage.prompt_tokens == 0 && usage.completion_tokens == 0 {
+                        info!("LLM FAILED/ERROR | PID: {} | Model: {} | Latency: {:.2}s",
                               pid, model_str, latency.as_secs_f64());
-                    } else if usage.prompt_tokens == 0 && usage.completion_tokens == 0 {
-                         info!("LLM FAILED/ERROR | PID: {} | Model: {} | Latency: {:.2}s | Est. Input: {}",
-                               pid, model_str, latency.as_secs_f64(), est_input_tokens);
                     } else {
-                         let thoughts_str = usage.thoughts_tokens
-                             .map(|t| format!(", Thoughts: {}", t))
-                             .unwrap_or_default();
-                         info!("LLM SUCCESS | PID: {} | Model: {} | Latency: {:.2}s | Tokens: {} (Prompt: {}, Compl: {}{}) | Est. Input: {}",
-                               pid, model_str, latency.as_secs_f64(),
-                               usage.prompt_tokens + usage.completion_tokens,
-                               usage.prompt_tokens, usage.completion_tokens,
-                               thoughts_str, est_input_tokens);
+                        let thoughts_str = usage.thoughts_tokens
+                            .map(|t| format!(", Thoughts: {}", t))
+                            .unwrap_or_default();
+                        info!("LLM SUCCESS | PID: {} | Model: {} | Latency: {:.2}s | Tokens: {} (Prompt: {}, Compl: {}{})",
+                              pid, model_str, latency.as_secs_f64(),
+                              usage.prompt_tokens + usage.completion_tokens,
+                              usage.prompt_tokens, usage.completion_tokens,
+                              thoughts_str);
                     }
 
                     ProcessorState::Finished
                 } else {
                     // Incomplete -> keep state
-                    ProcessorState::ProcessingResponse { start_time, parser, est_input_tokens }
+                    ProcessorState::ProcessingResponse { start_time, parser }
                 }
             },
 
