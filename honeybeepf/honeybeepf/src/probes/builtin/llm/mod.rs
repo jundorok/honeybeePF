@@ -1,29 +1,26 @@
-pub mod discovery;
+mod discovery;
 pub mod http;
 pub mod processor;
 pub mod types;
 
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
     time::Duration,
 };
 
-use anyhow::{Context, Result};
-use aya::{
-    Ebpf,
-    programs::{TracePoint, UProbe},
-};
-use honeybeepf_common::{ExecEvent, LlmEvent};
+use anyhow::Result;
+use aya::Ebpf;
+use honeybeepf_common::LlmEvent;
 use log::{info, warn};
 use processor::StreamProcessor;
-use tokio::sync::Notify;
 use types::LlmDirection;
 
-use crate::probes::{Probe, spawn_ringbuf_handler};
+// Re-export exec watch types and functions for lib.rs
+pub use crate::probes::{ExecNotify, ExecPidQueue, setup_exec_watch};
+use crate::probes::{Probe, attach_uprobe, spawn_ringbuf_handler};
 
-// Queue and timing constants
-const MAX_EXEC_QUEUE_SIZE: usize = 1024; // Max pending exec PIDs
+// Timing constants
 const CLEANUP_INTERVAL_SECS: u64 = 30; // How often to run cleanup
 const CONNECTION_RETENTION_SECS: u64 = 300; // Keep idle connections for 5 minutes
 
@@ -85,42 +82,6 @@ pub fn attach_new_targets_for_pids(
     }
 
     Ok(())
-}
-
-/// Shared queue of PIDs from exec events.
-pub type ExecPidQueue = Arc<Mutex<VecDeque<u32>>>;
-
-/// Notifier to wake up the main loop immediately when new exec events arrive.
-pub type ExecNotify = Arc<Notify>;
-
-/// Set up the `sched_process_exec` tracepoint and return a queue that collects
-/// PIDs of newly exec'd processes. The caller drains this queue to do targeted scans.
-/// Also returns a Notify that gets triggered on each new exec event.
-pub fn setup_exec_watch(bpf: &mut Ebpf) -> Result<(ExecPidQueue, ExecNotify)> {
-    let program: &mut TracePoint = bpf
-        .program_mut("probe_exec")
-        .context("Failed to find probe_exec program")?
-        .try_into()?;
-    program.load()?;
-    program.attach("sched", "sched_process_exec")?;
-
-    let queue: ExecPidQueue = Arc::new(Mutex::new(VecDeque::new()));
-    let notify: ExecNotify = Arc::new(Notify::new());
-    let handler_queue = queue.clone();
-    let handler_notify = notify.clone();
-
-    spawn_ringbuf_handler(bpf, "EXEC_EVENTS", move |event: ExecEvent| {
-        let mut q = handler_queue.lock().unwrap_or_else(|e| e.into_inner());
-        // Cap queue to avoid unbounded growth under extreme exec rates
-        if q.len() < MAX_EXEC_QUEUE_SIZE {
-            q.push_back(event.pid);
-        }
-        // Notify the main loop immediately
-        handler_notify.notify_one();
-    })?;
-
-    info!("Exec watch active: will trigger targeted SSL re-discovery on new processes");
-    Ok((queue, notify))
 }
 
 pub struct LlmProbe;
@@ -191,20 +152,7 @@ fn start_cleanup_task(state: StreamMap) {
     });
 }
 
-fn attach_uprobe(bpf: &mut Ebpf, prog_name: &str, func_name: &str, path: &str) -> Result<()> {
-    let program: &mut UProbe = bpf
-        .program_mut(prog_name)
-        .with_context(|| format!("Failed to find program {}", prog_name))?
-        .try_into()?;
-
-    // Check if loaded using fd()
-    if program.fd().is_err() {
-        program.load()?;
-    }
-
-    program
-        .attach(Some(func_name), 0, path, None)
-        .with_context(|| format!("Failed to attach {} to {}", prog_name, func_name))?;
-
-    Ok(())
+/// Find all SSL targets. Re-exported for lib.rs to seed known_targets.
+pub fn find_all_targets() -> Result<HashSet<String>> {
+    discovery::find_all_targets()
 }
