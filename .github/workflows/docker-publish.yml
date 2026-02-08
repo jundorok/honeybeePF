@@ -1,10 +1,10 @@
 name: CI/CD
 
 on:
-  workflow_run:
-    workflows: ["Lint & Format"]
-    types:
-      - completed
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -12,10 +12,32 @@ env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/honeybeepf
 
 jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (nightly)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy, rust-src
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: honeybeepf
+          cache-on-failure: true
+
+      - name: Check formatting
+        working-directory: honeybeepf
+        run: cargo fmt --all -- --check
+
   build-and-test:
     name: Build (Rust) and sanity-check
+    needs: lint
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     permissions:
       contents: read
     steps:
