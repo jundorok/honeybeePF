@@ -16,7 +16,7 @@ use crate::probes::{
     Probe,
     builtin::{
         block_io::BlockIoProbe,
-        gpu_usage::GpuUsageProbe,
+        gpu::{nccl::NcclCommProbe, usage::GpuUsageProbe},
         llm::{
             ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
             setup_exec_watch,
@@ -121,9 +121,14 @@ impl HoneyBeeEngine {
             telemetry::record_active_probe("block_io", 1);
         }
 
-        if self.settings.builtin_probes.gpu_usage.unwrap_or(false) {
+        if self.settings.builtin_probes.gpu.usage.unwrap_or(false) {
             GpuUsageProbe.attach(&mut self.bpf)?;
             telemetry::record_active_probe("gpu_usage", 1);
+        }
+
+        if self.settings.builtin_probes.gpu.nccl.unwrap_or(false) {
+            NcclCommProbe.attach(&mut self.bpf)?;
+            telemetry::record_active_probe("nccl", 1);
         }
 
         if self.settings.builtin_probes.llm.unwrap_or(false) {
