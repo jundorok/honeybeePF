@@ -57,7 +57,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cargo build --release --package honeybeepf --target $TARGET_TRIPLE && \
     cp target/$TARGET_TRIPLE/release/honeybeepf /app/honeybeepf-bin
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && apt-get install -y libelf1 ca-certificates
 WORKDIR /app

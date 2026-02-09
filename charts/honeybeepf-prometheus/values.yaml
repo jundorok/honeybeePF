@@ -2,8 +2,6 @@ prometheus:
   server:
     persistentVolume:
       enabled: false
-      storageClassName: "local-path"
-      size: 5Gi
     retention: "2d"
     resources:
       limits:
@@ -14,15 +12,15 @@ prometheus:
         memory: 512Mi
     service:
       type: ClusterIP
-  
+
   alertmanager:
     enabled: false
-  
+
   pushgateway:
     enabled: false
-  
+
   nodeExporter:
     enabled: false
-  
+
   kubeStateMetrics:
     enabled: false

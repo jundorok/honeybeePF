@@ -28,7 +28,8 @@ opentelemetry-collector:
       enabled: false
     zipkin:
       enabled: false
-
+    metrics:
+      enabled: false  
   presets:
     logsCollection:
       enabled: false
@@ -43,6 +44,8 @@ opentelemetry-collector:
     hostMetrics:
       enabled: false
 
+  # CRITICAL: Use complete config replacement, not merge
+  # Set unused receivers to null to prevent Helm from merging defaults
   config:
     receivers:
       otlp:
@@ -51,6 +54,9 @@ opentelemetry-collector:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
+      jaeger: null
+      zipkin: null
+      prometheus: null
 
     processors:
       batch:
@@ -64,32 +70,46 @@ opentelemetry-collector:
     exporters:
       prometheus:
         endpoint: 0.0.0.0:8889
-        namespace: monitoring
+        namespace: honeybeepf
         const_labels:
           collector: otel
         resource_to_telemetry_conversion:
           enabled: true
+        send_timestamps: true
+        metric_expiration: 5m
       debug:
         verbosity: basic
 
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
     service:
+      extensions: [health_check]
+      telemetry:
+        logs:
+          level: info
+        metrics:
+          level: none  
       pipelines:
+        traces: null
+        logs: null
         metrics:
           receivers: [otlp]
           processors: [memory_limiter, batch]
-          exporters: [prometheus, debug]
+          exporters: [prometheus]
 
   service:
     enabled: true
     type: ClusterIP
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8889"
+      prometheus.io/path: "/metrics"
 
+  # ServiceMonitor is disabled because we use annotation-based scraping defined above.
   serviceMonitor:
-    enabled: true
-    interval: 30s
-    scrapeTimeout: 10s
-    endpoints:
-    - port: prometheus
-      path: /metrics
+    enabled: false
 
   podMonitor:
     enabled: false

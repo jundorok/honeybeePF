@@ -5,14 +5,16 @@ metadata:
   labels:
     {{- include "honeybeepf.labels" . | nindent 4 }}
 data:
-  # Rust Log Level
   RUST_LOG: {{ .Values.rustLog | quote }}
-
-  # OTLP Configuration for raw data transmission
-  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.output.otlp.endpoint | quote }}
-  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.output.otlp.protocol | quote }}
-
-  # Built-in Probe Toggles (High-level)
+  {{- if .Values.output.otlp.endpoint }}
+  {{- $otlpEndpoint := .Values.output.otlp.endpoint -}}
+  {{- if or (hasPrefix "http://" $otlpEndpoint) (hasPrefix "https://" $otlpEndpoint) }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ $otlpEndpoint | quote }}
+  {{- else }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://%s" $otlpEndpoint | quote }}
+  {{- end }}
+  OTEL_SERVICE_NAME: "honeybeepf"
+  {{- end }}
   BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
   BUILTIN_PROBES__NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
   # GPU Probes (hierarchical: gpu.usage, gpu.nccl)
@@ -21,10 +23,13 @@ data:
   {{- if .Values.builtinProbes.gpu.nccl.libPath }}
   BUILTIN_PROBES__GPU__NCCL_LIB_PATH: {{ .Values.builtinProbes.gpu.nccl.libPath | quote }}
   {{- end }}
-  # Collection Interval (Resource Management Action Item)
+  # LLM Probes
+  BUILTIN_PROBES__LLM: {{ .Values.builtinProbes.llm.enabled | quote }}
+  {{- if .Values.builtinProbes.llm.providers }}
+  LLM_PROVIDERS_CONFIG: {{ dict "providers" .Values.builtinProbes.llm.providers | toJson | quote }}
+  {{- end }}
+  # Collection Interval
   BUILTIN_PROBES__INTERVAL: {{ .Values.builtinProbes.interval | quote }}
-
-  # Custom Probe JSON: Serialized for the Aya/Rust agent
   {{- if or .Values.customProbes.kprobes .Values.customProbes.uprobes .Values.customProbes.tracepoints }}
   CUSTOM_PROBE_CONFIG: {{ toJson .Values.customProbes | quote }}
   {{- end }}
