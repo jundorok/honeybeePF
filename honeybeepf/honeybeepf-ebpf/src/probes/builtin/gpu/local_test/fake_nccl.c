@@ -3,6 +3,11 @@
  * =================================================
 */
 
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 typedef enum {
     ncclSuccess            = 0,
     ncclUnhandledCudaError = 1,

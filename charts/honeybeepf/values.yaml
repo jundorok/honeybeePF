@@ -64,7 +64,7 @@ builtinProbes:
     nccl:
       enabled: false
       # Optional: Override libnccl.so path (auto-detected by default)
-      # libPath: "/usr/lib/x86_64-linux-gnu/libnccl.so.2"
+      libPath: "/home/ubuntu/nccl-test/libfake_nccl.so"
   interval: 1000
 
 customProbes:
