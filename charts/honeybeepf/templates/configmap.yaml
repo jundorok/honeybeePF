@@ -21,7 +21,7 @@ data:
   BUILTIN_PROBES__GPU__USAGE: {{ .Values.builtinProbes.gpu.usage.enabled | quote }}
   BUILTIN_PROBES__GPU__NCCL: {{ .Values.builtinProbes.gpu.nccl.enabled | quote }}
   {{- if .Values.builtinProbes.gpu.nccl.libPath }}
-  BUILTIN_PROBES__GPU__NCCL_LIB_PATH: {{ .Values.builtinProbes.gpu.nccl.libPath | quote }}
+  HONEYBEEPF_NCCL_PATH: {{ .Values.builtinProbes.gpu.nccl.libPath | quote }}
   {{- end }}
   # LLM Probes
   BUILTIN_PROBES__LLM: {{ .Values.builtinProbes.llm.enabled | quote }}
