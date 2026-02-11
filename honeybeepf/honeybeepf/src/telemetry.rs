@@ -18,6 +18,9 @@ use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 
+#[cfg(feature = "k8s")]
+use crate::k8s::PodInfo;
+
 /// Metric export interval in seconds
 const METRIC_EXPORT_INTERVAL_SECS: u64 = 30;
 
@@ -163,12 +166,53 @@ pub fn metrics() -> Option<&'static HoneyBeeMetrics> {
     METRICS.get()
 }
 
-pub fn record_block_io_event(event_type: &str, bytes: u64, latency_ns: Option<u64>, device: &str) {
+/// Build process identity attributes.
+///
+/// Always includes `process.name`. When the `k8s` feature is enabled and
+/// pod info is available, also includes K8s attributes following OTEL
+/// semantic conventions.
+fn process_attrs(
+    process_name: &str,
+    #[cfg(feature = "k8s")] pod: Option<&PodInfo>,
+) -> Vec<KeyValue> {
+    let mut attrs = vec![KeyValue::new("process.name", process_name.to_string())];
+
+    #[cfg(feature = "k8s")]
+    if let Some(info) = pod {
+        attrs.push(KeyValue::new("k8s.pod.name", info.pod_name.clone()));
+        attrs.push(KeyValue::new(
+            "k8s.namespace.name",
+            info.namespace.clone(),
+        ));
+        if let Some(ref name) = info.workload_name {
+            attrs.push(KeyValue::new("k8s.workload.name", name.clone()));
+        }
+        if let Some(ref kind) = info.workload_kind {
+            attrs.push(KeyValue::new("k8s.workload.kind", kind.clone()));
+        }
+    }
+
+    attrs
+}
+
+pub fn record_block_io_event(
+    event_type: &str,
+    bytes: u64,
+    latency_ns: Option<u64>,
+    device: &str,
+    process_name: &str,
+    #[cfg(feature = "k8s")] pod: Option<&PodInfo>,
+) {
     if let Some(m) = metrics() {
-        let attrs = [
+        let mut attrs = vec![
             KeyValue::new("event_type", event_type.to_string()),
             KeyValue::new("device", device.to_string()),
         ];
+        attrs.extend(process_attrs(
+            process_name,
+            #[cfg(feature = "k8s")]
+            pod,
+        ));
 
         m.block_io_events.add(1, &attrs);
         m.block_io_bytes.add(bytes, &attrs);
@@ -179,16 +223,35 @@ pub fn record_block_io_event(event_type: &str, bytes: u64, latency_ns: Option<u6
     }
 }
 
-pub fn record_network_latency(latency_ns: u64, protocol: &str) {
+pub fn record_network_latency(
+    latency_ns: u64,
+    protocol: &str,
+    process_name: &str,
+    #[cfg(feature = "k8s")] pod: Option<&PodInfo>,
+) {
     if let Some(m) = metrics() {
-        let attrs = [KeyValue::new("protocol", protocol.to_string())];
+        let mut attrs = vec![KeyValue::new("protocol", protocol.to_string())];
+        attrs.extend(process_attrs(
+            process_name,
+            #[cfg(feature = "k8s")]
+            pod,
+        ));
         m.network_latency_ns.record(latency_ns, &attrs);
     }
 }
 
-pub fn record_gpu_open_event(device_path: &str) {
+pub fn record_gpu_open_event(
+    device_path: &str,
+    process_name: &str,
+    #[cfg(feature = "k8s")] pod: Option<&PodInfo>,
+) {
     if let Some(m) = metrics() {
-        let attrs = [KeyValue::new("device", device_path.to_string())];
+        let mut attrs = vec![KeyValue::new("device", device_path.to_string())];
+        attrs.extend(process_attrs(
+            process_name,
+            #[cfg(feature = "k8s")]
+            pod,
+        ));
         m.gpu_open_events.add(1, &attrs);
     }
 }

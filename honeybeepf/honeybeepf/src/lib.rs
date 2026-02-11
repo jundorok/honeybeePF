@@ -1,6 +1,9 @@
 pub mod settings;
 pub mod telemetry;
 
+#[cfg(feature = "k8s")]
+pub mod k8s;
+
 use std::{collections::HashSet, sync::atomic::Ordering, time::Duration};
 
 use anyhow::Result;
@@ -13,7 +16,7 @@ use crate::settings::Settings;
 
 pub mod probes;
 use crate::probes::{
-    Probe,
+    IdentityResolver, Probe,
     builtin::{
         block_io::BlockIoProbe,
         gpu_usage::GpuUsageProbe,
@@ -29,6 +32,7 @@ use crate::probes::{
 pub struct HoneyBeeEngine {
     pub settings: Settings,
     bpf: Ebpf,
+    resolver: IdentityResolver,
 }
 
 impl HoneyBeeEngine {
@@ -38,7 +42,12 @@ impl HoneyBeeEngine {
         if let Err(e) = EbpfLogger::init(&mut bpf) {
             warn!("Failed to initialize eBPF logger: {}", e);
         }
-        Ok(Self { settings, bpf })
+        let resolver = IdentityResolver::none();
+        Ok(Self {
+            settings,
+            bpf,
+            resolver,
+        })
     }
 
     pub async fn run(mut self) -> Result<()> {
@@ -47,6 +56,30 @@ impl HoneyBeeEngine {
                 "Failed to initialize OpenTelemetry metrics: {}. Metrics will not be exported.",
                 e
             );
+        }
+
+        // Start K8s pod watcher if available
+        #[cfg(feature = "k8s")]
+        {
+            use std::sync::Arc;
+            if let Ok(node_name) = std::env::var("K8S_NODE_NAME") {
+                info!("Starting K8s pod watcher for node: {}", node_name);
+                let pod_resolver = Arc::new(k8s::PodResolver::new());
+                match pod_resolver.start_k8s_watcher(node_name).await {
+                    Ok(_handle) => {
+                        info!("K8s pod watcher started");
+                        self.resolver = IdentityResolver::with_pod_resolver(pod_resolver);
+                    }
+                    Err(e) => {
+                        warn!(
+                            "K8s pod watcher failed to start: {}. Pod resolution disabled.",
+                            e
+                        );
+                    }
+                }
+            } else {
+                info!("K8S_NODE_NAME not set. Pod resolution disabled (running outside K8s?).");
+            }
         }
 
         self.attach_probes()?;
@@ -111,23 +144,23 @@ impl HoneyBeeEngine {
             .network_latency
             .unwrap_or(false)
         {
-            NetworkLatencyProbe.attach(&mut self.bpf)?;
+            NetworkLatencyProbe.attach(&mut self.bpf, self.resolver.clone())?;
             // Note: network_latency probe currently logs connection events only,
             // latency measurement not yet implemented
         }
 
         if self.settings.builtin_probes.block_io.unwrap_or(false) {
-            BlockIoProbe.attach(&mut self.bpf)?;
+            BlockIoProbe.attach(&mut self.bpf, self.resolver.clone())?;
             telemetry::record_active_probe("block_io", 1);
         }
 
         if self.settings.builtin_probes.gpu_usage.unwrap_or(false) {
-            GpuUsageProbe.attach(&mut self.bpf)?;
+            GpuUsageProbe.attach(&mut self.bpf, self.resolver.clone())?;
             telemetry::record_active_probe("gpu_usage", 1);
         }
 
         if self.settings.builtin_probes.llm.unwrap_or(false) {
-            LlmProbe.attach(&mut self.bpf)?;
+            LlmProbe.attach(&mut self.bpf, self.resolver.clone())?;
             telemetry::record_active_probe("llm", 1);
         }
 

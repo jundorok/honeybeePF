@@ -20,7 +20,7 @@ use processor::StreamProcessor;
 use tokio::sync::Notify;
 use types::LlmDirection;
 
-use crate::probes::{Probe, spawn_ringbuf_handler};
+use crate::probes::{IdentityResolver, Probe, spawn_ringbuf_handler};
 
 // Queue and timing constants
 const MAX_EXEC_QUEUE_SIZE: usize = 1024; // Max pending exec PIDs
@@ -129,7 +129,7 @@ pub struct LlmProbe;
 type StreamMap = Arc<Mutex<HashMap<(u32, u32), StreamProcessor>>>;
 
 impl Probe for LlmProbe {
-    fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
+    fn attach(&self, bpf: &mut Ebpf, resolver: IdentityResolver) -> Result<()> {
         let targets = discovery::find_all_targets()?;
 
         if targets.is_empty() {
@@ -161,6 +161,9 @@ impl Probe for LlmProbe {
             if event.buf_filled == 0 || event.len == 0 {
                 return;
             }
+
+            // Resolve pod identity (result is used for future telemetry enrichment)
+            let _pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
 
             let key = (event.metadata.pid, event.metadata._pad);
             let mut map = handler_state.lock().unwrap_or_else(|e| e.into_inner());
