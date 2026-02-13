@@ -1,11 +1,7 @@
 pub mod settings;
-<<<<<<< HEAD
 pub mod telemetry;
 
-use std::{collections::HashSet, sync::atomic::Ordering, time::Duration};
-=======
 use std::{sync::atomic::Ordering, time::Duration};
->>>>>>> feab725 (Optimize)
 
 use anyhow::Result;
 use aya::Ebpf;

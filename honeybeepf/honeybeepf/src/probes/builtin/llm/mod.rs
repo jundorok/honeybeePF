@@ -97,8 +97,7 @@ impl DynamicProbe for LlmProbe {
             );
             match attach_probes_to_path(bpf, &path) {
                 Ok(()) => {
-                    let mut known =
-                        self.known_targets.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut known = self.known_targets.lock().unwrap_or_else(|e| e.into_inner());
                     known.insert(path);
                 }
                 Err(e) => {
