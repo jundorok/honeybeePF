@@ -63,7 +63,7 @@ impl HoneyBeeEngine {
 
         self.attach_probes()?;
 
-        // Start LLM dynamic discovery if enabled
+        // Start dynamic probe discovery if any dynamic probes are enabled
         if !self.dynamic_probes.is_empty() {
             let (queue, notify) = setup_exec_watch(&mut self.bpf)?;
             self.run_discovery(queue, notify).await?;

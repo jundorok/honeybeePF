@@ -151,7 +151,9 @@ pub fn setup_exec_watch(bpf: &mut Ebpf) -> Result<(ExecPidQueue, ExecNotify)> {
         .program_mut("probe_exec")
         .context("Failed to find probe_exec program")?
         .try_into()?;
-    program.load()?;
+    if program.fd().is_err() {
+        program.load()?;
+    }
     program.attach("sched", "sched_process_exec")?;
 
     let queue: ExecPidQueue = Arc::new(Mutex::new(VecDeque::new()));

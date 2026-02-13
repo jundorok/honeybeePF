@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf, process::Command};
 
 use anyhow::Result;
-use log::debug;
+use log::{debug, warn};
 use regex::Regex;
 
 /// Resolves a path from a process's namespace to the host filesystem.
@@ -80,19 +80,27 @@ pub fn find_libraries_all(
 pub fn find_system_libraries(substring: &str) -> Result<Vec<String>> {
     let mut paths = Vec::new();
 
-    if let Ok(output) = Command::new("ldconfig").arg("-p").output() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        for line in stdout.lines() {
-            if line.contains(substring) {
-                let parts: Vec<&str> = line.split("=>").collect();
-                if parts.len() > 1 {
-                    let path = parts[1].trim().to_string();
-                    if !paths.contains(&path) {
-                        debug!("Found system library via ldconfig: {}", path);
-                        paths.push(path);
+    match Command::new("ldconfig").arg("-p").output() {
+        Ok(output) => {
+            if !output.status.success() {
+                warn!("ldconfig exited with status: {}", output.status);
+            }
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                if line.contains(substring) {
+                    let parts: Vec<&str> = line.split("=>").collect();
+                    if parts.len() > 1 {
+                        let path = parts[1].trim().to_string();
+                        if !paths.contains(&path) {
+                            debug!("Found system library via ldconfig: {}", path);
+                            paths.push(path);
+                        }
                     }
                 }
             }
+        }
+        Err(e) => {
+            warn!("Failed to execute ldconfig: {}", e);
         }
     }
 

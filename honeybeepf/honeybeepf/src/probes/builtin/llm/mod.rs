@@ -70,27 +70,36 @@ impl Default for LlmProbe {
 
 impl DynamicProbe for LlmProbe {
     fn on_exec(&self, bpf: &mut Ebpf, process_info: &ProcessInfo) -> Result<()> {
-        let mut known = self.known_targets.lock().unwrap();
+        // Collect candidates while holding the lock briefly
+        let candidates: Vec<String> = {
+            let known = self.known_targets.lock().unwrap_or_else(|e| e.into_inner());
+            process_info
+                .libs
+                .iter()
+                .filter(|path| {
+                    // Match against basename with a strict prefix check
+                    let is_ssl = std::path::Path::new(path)
+                        .file_name()
+                        .and_then(|f| f.to_str())
+                        .map(|f| f.starts_with("libssl.so"))
+                        .unwrap_or(false);
+                    is_ssl && !known.contains(*path)
+                })
+                .cloned()
+                .collect()
+        };
 
-        for path in &process_info.libs {
-            // Simple heuristic to match libssl (optimization over regex)
-            if !path.contains("libssl") {
-                continue;
-            }
-            if path.contains("libcrypto") {
-                continue;
-            }
-            if known.contains(path) {
-                continue;
-            }
-
+        // Attach probes without holding the lock
+        for path in candidates {
             info!(
                 "[Re-discovery] New SSL library found: {} (PID: {})",
                 path, process_info.pid
             );
-            match attach_probes_to_path(bpf, path) {
+            match attach_probes_to_path(bpf, &path) {
                 Ok(()) => {
-                    known.insert(path.clone());
+                    let mut known =
+                        self.known_targets.lock().unwrap_or_else(|e| e.into_inner());
+                    known.insert(path);
                 }
                 Err(e) => {
                     warn!("[Re-discovery] Failed to attach to {}: {}", path, e);
@@ -115,7 +124,7 @@ impl Probe for LlmProbe {
 
         // Seed known targets
         {
-            let mut known = self.known_targets.lock().unwrap();
+            let mut known = self.known_targets.lock().unwrap_or_else(|e| e.into_inner());
             for t in &targets {
                 known.insert(t.clone());
             }
@@ -175,7 +184,7 @@ fn start_cleanup_task(state: StreamMap) {
     });
 }
 
-/// Find all SSL targets. Re-exported for lib.rs to seed known_targets.
+/// Find all SSL targets. Convenience wrapper around `discovery::find_all_targets`.
 pub fn find_all_targets() -> Result<HashSet<String>> {
     discovery::find_all_targets()
 }
