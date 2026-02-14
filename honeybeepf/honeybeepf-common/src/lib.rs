@@ -29,9 +29,8 @@ unsafe impl aya::Pod for ConnectionEvent {}
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct CommonConfig {
-    pub probe_network_latency: u8,
     pub probe_llm: u8,
-    pub _pad: [u8; 6],
+    pub _pad: [u8; 7],
     pub probe_interval: u32,
 }
 

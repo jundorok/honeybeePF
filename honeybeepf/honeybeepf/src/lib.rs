@@ -14,12 +14,9 @@ use crate::settings::Settings;
 pub mod probes;
 use crate::probes::{
     Probe,
-    builtin::{
-        llm::{
-            ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
-            setup_exec_watch,
-        },
-        network::NetworkLatencyProbe,
+    builtin::llm::{
+        ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
+        setup_exec_watch,
     },
     request_shutdown, shutdown_flag,
 };
@@ -103,17 +100,6 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
-        if self
-            .settings
-            .builtin_probes
-            .network_latency
-            .unwrap_or(false)
-        {
-            NetworkLatencyProbe.attach(&mut self.bpf)?;
-            // Note: network_latency probe currently logs connection events only,
-            // latency measurement not yet implemented
-        }
-
         if self.settings.builtin_probes.llm.unwrap_or(false) {
             LlmProbe.attach(&mut self.bpf)?;
             telemetry::record_active_probe("llm", 1);
