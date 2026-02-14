@@ -8,56 +8,53 @@ image:
 imagePullSecrets: [] 
 podAnnotations: {}
 
-# NOTE: HoneybeePF uses OTLP to send metrics to OTel Collector.
-# Prometheus scrapes the OTel Collector's prometheus exporter (port 8889), 
-# NOT the agent directly. The agent does NOT expose a /metrics endpoint.
-# ServiceMonitor is NOT used - this chart uses annotation-based scraping.
-
 output:
   otlp:
-    endpoint: ""  # honeybeepf-otel-collector-opentelemetry-collector:4317
+    endpoint: ""
     collectorReleaseName: "honeybeepf-otel-collector"
     port: 4317
     protocol: "grpc"
+
 serviceAccount:
   create: true
   annotations: {}
   name: ""
 
-# Valid values: trace, debug, info, warn, error
 rustLog: "info"
 
 builtinProbes:
-  block_io:
-    enabled: false
-  network_latency:
-    enabled: false
-  # GPU probes (hierarchical configuration)
-  gpu:
-    # GPU usage monitoring (memory, utilization)
-    usage:
-      enabled: false
-    # NCCL collective communication monitoring
-    nccl:
+  network:
+    tcp_connect:
       enabled: true
-      # Optional: Override libnccl.so path (auto-detected by default)
-      libPath: /usr/lib/x86_64-linux-gnu/libnccl.so.2.19.4
+    tcp_retrans:
+      enabled: true
+    dns:
+      enabled: false
+
+  filesystem:
+    vfs_latency:
+      enabled: true
+      threshold_ms: 10
+    file_access:
+      enabled: true
+      watched_paths:
+        - /etc/passwd
+        - /etc/shadow
+        - /etc/sudoers
+        - /root/.ssh
+
+  scheduler:
+    runqueue:
+      enabled: false
+      threshold_ms: 10
+    offcpu:
+      enabled: false
+      threshold_ms: 1
+
   llm:
     enabled: false
-    # Custom providers config (optional). Built-in: OpenAI, Anthropic, Gemini
-    # Add your own providers here (e.g. Ollama, vLLM, private models).
     providers: []
-    # Example:
-    # providers:
-    #   - name: "ollama"
-    #     hosts: ["localhost", "ollama.internal"]
-    #     paths: ["/api/generate", "/api/chat"]
-    #     response:
-    #       usage_path: "usage"               # JSON path to usage object
-    #       prompt_tokens: "prompt_eval_count" # Field name for input tokens
-    #       completion_tokens: "eval_count"    # Field name for output tokens
-    #       model_path: "model"
-    #     request_extractor: "messages"       # How to extract prompt text (messages, contents, prompt)
+
   interval: 1000
 
 customProbes:
@@ -78,6 +75,7 @@ securityContext:
       - SYS_RESOURCE
       - SYS_PTRACE
       - DAC_OVERRIDE
+
 resources:
   limits:
     cpu: "1000m"
@@ -85,10 +83,7 @@ resources:
   requests:
     cpu: "200m"
     memory: "512Mi"
-tolerations:
-  - key: "nvidia.com/gpu"
-    operator: "Exists"
-    effect: "NoSchedule"
 
-# Debug mode
+tolerations: []
+
 debug: false

@@ -6,6 +6,7 @@ metadata:
     {{- include "honeybeepf.labels" . | nindent 4 }}
 data:
   RUST_LOG: {{ .Values.rustLog | quote }}
+  
   {{- if .Values.output.otlp.endpoint }}
   {{- $otlpEndpoint := .Values.output.otlp.endpoint -}}
   {{- if or (hasPrefix "http://" $otlpEndpoint) (hasPrefix "https://" $otlpEndpoint) }}
@@ -15,22 +16,42 @@ data:
   {{- end }}
   OTEL_SERVICE_NAME: "honeybeepf"
   {{- end }}
-  BUILTIN_PROBES__BLOCK_IO: {{ .Values.builtinProbes.block_io.enabled | quote }}
-  BUILTIN_PROBES__NETWORK_LATENCY: {{ .Values.builtinProbes.network_latency.enabled | quote }}
-  # GPU Probes (hierarchical: gpu.usage, gpu.nccl)
-  BUILTIN_PROBES__GPU__USAGE: {{ .Values.builtinProbes.gpu.usage.enabled | quote }}
-  BUILTIN_PROBES__GPU__NCCL: {{ .Values.builtinProbes.gpu.nccl.enabled | quote }}
-  {{- if .Values.builtinProbes.gpu.nccl.libPath }}
-  # Host path is mounted at /host, so prepend /host to the path
-  HONEYBEEPF_NCCL_PATH: {{ printf "/host%s" .Values.builtinProbes.gpu.nccl.libPath | quote }}
+
+  # === Network Probes ===
+  BUILTIN_PROBES__NETWORK__TCP_CONNECT: {{ .Values.builtinProbes.network.tcp_connect.enabled | quote }}
+  BUILTIN_PROBES__NETWORK__TCP_RETRANS: {{ .Values.builtinProbes.network.tcp_retrans.enabled | quote }}
+  BUILTIN_PROBES__NETWORK__DNS: {{ .Values.builtinProbes.network.dns.enabled | quote }}
+
+  # === Filesystem Probes ===
+  BUILTIN_PROBES__FILESYSTEM__VFS_LATENCY: {{ .Values.builtinProbes.filesystem.vfs_latency.enabled | quote }}
+  {{- if .Values.builtinProbes.filesystem.vfs_latency.threshold_ms }}
+  BUILTIN_PROBES__FILESYSTEM__VFS_LATENCY_THRESHOLD_MS: {{ .Values.builtinProbes.filesystem.vfs_latency.threshold_ms | quote }}
   {{- end }}
-  # LLM Probes
+  BUILTIN_PROBES__FILESYSTEM__FILE_ACCESS: {{ .Values.builtinProbes.filesystem.file_access.enabled | quote }}
+  {{- if .Values.builtinProbes.filesystem.file_access.watched_paths }}
+  BUILTIN_PROBES__FILESYSTEM__WATCHED_PATHS: {{ .Values.builtinProbes.filesystem.file_access.watched_paths | toJson | quote }}
+  {{- end }}
+
+  # === Scheduler Probes ===
+  BUILTIN_PROBES__SCHEDULER__RUNQUEUE: {{ .Values.builtinProbes.scheduler.runqueue.enabled | quote }}
+  {{- if .Values.builtinProbes.scheduler.runqueue.threshold_ms }}
+  BUILTIN_PROBES__SCHEDULER__RUNQUEUE_THRESHOLD_MS: {{ .Values.builtinProbes.scheduler.runqueue.threshold_ms | quote }}
+  {{- end }}
+  BUILTIN_PROBES__SCHEDULER__OFFCPU: {{ .Values.builtinProbes.scheduler.offcpu.enabled | quote }}
+  {{- if .Values.builtinProbes.scheduler.offcpu.threshold_ms }}
+  BUILTIN_PROBES__SCHEDULER__OFFCPU_THRESHOLD_MS: {{ .Values.builtinProbes.scheduler.offcpu.threshold_ms | quote }}
+  {{- end }}
+
+  # === LLM Probes ===
   BUILTIN_PROBES__LLM: {{ .Values.builtinProbes.llm.enabled | quote }}
   {{- if .Values.builtinProbes.llm.providers }}
   LLM_PROVIDERS_CONFIG: {{ dict "providers" .Values.builtinProbes.llm.providers | toJson | quote }}
   {{- end }}
-  # Collection Interval
+
+  # === Collection Interval ===
   BUILTIN_PROBES__INTERVAL: {{ .Values.builtinProbes.interval | quote }}
+
+  # === Custom Probes ===
   {{- if or .Values.customProbes.kprobes .Values.customProbes.uprobes .Values.customProbes.tracepoints }}
   CUSTOM_PROBE_CONFIG: {{ toJson .Values.customProbes | quote }}
   {{- end }}
