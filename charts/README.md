@@ -170,5 +170,4 @@ curl http://localhost:8889/metrics | grep honeybeepf_
 | `honeybeepf_block_io_bytes_total` | Counter | Total Block I/O bytes |
 | `honeybeepf_block_io_latency_ns` | Histogram | Block I/O latency (nanoseconds) |
 | `honeybeepf_network_latency_ns` | Histogram | Network latency (nanoseconds) |
-| `honeybeepf_gpu_open_events_total` | Counter | Number of GPU device open events |
 | `honeybeepf_active_probes` | Gauge | Number of currently active eBPF probes |

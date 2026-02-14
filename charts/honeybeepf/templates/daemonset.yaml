@@ -85,7 +85,7 @@ spec:
             - mountPath: /sys/kernel/debug
               name: debugfs
               readOnly: false
-            # Host filesystem for uprobe targets (NCCL, SSL libraries)
+            # Host filesystem for uprobe targets (SSL libraries)
             - mountPath: /host
               name: host-root
               readOnly: true
