@@ -80,7 +80,7 @@ impl Probe for TcpConnectProbe {
 impl TcpConnectProbe {
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
-            bpf.map_mut("TCP_CONNECT_EVENTS")
+            bpf.take_map("TCP_CONNECT_EVENTS")
                 .context("Failed to find TCP_CONNECT_EVENTS map")?,
         )?;
 

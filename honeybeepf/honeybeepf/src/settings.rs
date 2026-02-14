@@ -68,17 +68,17 @@ impl Settings {
 
     pub fn to_common_config(&self) -> honeybeepf_common::CommonConfig {
         // Network probes
-        let probe_tcp_connect = self.builtin_probes.network.tcp_connect.unwrap_or(false);
-        let probe_tcp_retrans = self.builtin_probes.network.tcp_retrans.unwrap_or(false);
-        let probe_dns = self.builtin_probes.network.dns.unwrap_or(false);
+        let _probe_tcp_connect = self.builtin_probes.network.tcp_connect.unwrap_or(false);
+        let _probe_tcp_retrans = self.builtin_probes.network.tcp_retrans.unwrap_or(false);
+        let _probe_dns = self.builtin_probes.network.dns.unwrap_or(false);
 
         // Filesystem probes
-        let probe_vfs_latency = self.builtin_probes.filesystem.vfs_latency.unwrap_or(false);
-        let probe_file_access = self.builtin_probes.filesystem.file_access.unwrap_or(false);
+        let _probe_vfs_latency = self.builtin_probes.filesystem.vfs_latency.unwrap_or(false);
+        let _probe_file_access = self.builtin_probes.filesystem.file_access.unwrap_or(false);
 
         // Scheduler probes
-        let probe_runqueue = self.builtin_probes.scheduler.runqueue.unwrap_or(false);
-        let probe_offcpu = self.builtin_probes.scheduler.offcpu.unwrap_or(false);
+        let _probe_runqueue = self.builtin_probes.scheduler.runqueue.unwrap_or(false);
+        let _probe_offcpu = self.builtin_probes.scheduler.offcpu.unwrap_or(false);
 
         // LLM probe
         let probe_llm = self.builtin_probes.llm.unwrap_or(false);

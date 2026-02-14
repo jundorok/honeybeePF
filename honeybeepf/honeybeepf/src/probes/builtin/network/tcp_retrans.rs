@@ -63,7 +63,7 @@ impl Probe for TcpRetransProbe {
 impl TcpRetransProbe {
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
-            bpf.map_mut("TCP_RETRANS_EVENTS")
+            bpf.take_map("TCP_RETRANS_EVENTS")
                 .context("Failed to find TCP_RETRANS_EVENTS map")?,
         )?;
 

@@ -86,7 +86,7 @@ impl Probe for VfsLatencyProbe {
 impl VfsLatencyProbe {
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
-            bpf.map_mut("VFS_EVENTS")
+            bpf.take_map("VFS_EVENTS")
                 .context("Failed to find VFS_EVENTS map")?,
         )?;
 

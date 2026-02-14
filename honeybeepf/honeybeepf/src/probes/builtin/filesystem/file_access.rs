@@ -71,7 +71,7 @@ impl Probe for FileAccessProbe {
 impl FileAccessProbe {
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
-            bpf.map_mut("FILE_ACCESS_EVENTS")
+            bpf.take_map("FILE_ACCESS_EVENTS")
                 .context("Failed to find FILE_ACCESS_EVENTS map")?,
         )?;
 

@@ -78,7 +78,7 @@ impl Probe for DnsProbe {
 impl DnsProbe {
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
-            bpf.map_mut("DNS_EVENTS")
+            bpf.take_map("DNS_EVENTS")
                 .context("Failed to find DNS_EVENTS map")?,
         )?;
 
