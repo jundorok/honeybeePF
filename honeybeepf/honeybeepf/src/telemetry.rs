@@ -2,10 +2,14 @@
 //!
 //! Exports eBPF metrics collected by honeybeepf to OpenTelemetry Collector.
 //!
+//! ## Metrics Categories
+//! - **Network**: TCP connections, retransmissions, DNS queries
+//! - **Filesystem**: VFS latency, file access auditing
+//! - **Scheduler**: Runqueue latency, off-CPU analysis
+//!
 //! ## OTLP Endpoint Priority
 //! 1. Helm values (injected via environment variables)
 //! 2. Direct environment variable configuration
-//! 3. Code default value (FQDN)
 
 use anyhow::{Context, Result};
 use log::info;
@@ -35,63 +39,30 @@ fn active_probes_map() -> &'static RwLock<HashMap<String, u64>> {
 }
 
 /// honeybeepf metrics collection
-///
-/// Note: Do NOT add _total suffix to Counter names (Prometheus adds it automatically)
 pub struct HoneyBeeMetrics {
-    // Block I/O metrics
-    pub block_io_events: Counter<u64>,
-    pub block_io_bytes: Counter<u64>,
-    pub block_io_latency_ns: Histogram<u64>,
-    
-    // Network metrics
-    pub network_latency_ns: Histogram<u64>,
+    // === Network metrics ===
     pub tcp_connect_events: Counter<u64>,
     pub tcp_connect_latency_ns: Histogram<u64>,
     pub tcp_retrans_events: Counter<u64>,
     pub dns_query_events: Counter<u64>,
     pub dns_query_latency_ns: Histogram<u64>,
     
-    // Filesystem metrics
+    // === Filesystem metrics ===
     pub vfs_read_events: Counter<u64>,
     pub vfs_write_events: Counter<u64>,
     pub vfs_latency_ns: Histogram<u64>,
     pub file_access_events: Counter<u64>,
     
-    // Scheduler metrics
+    // === Scheduler metrics ===
     pub runqueue_latency_ns: Histogram<u64>,
     pub offcpu_duration_ns: Histogram<u64>,
     pub context_switch_events: Counter<u64>,
-    
-    // GPU metrics (kept for compatibility)
-    pub gpu_open_events: Counter<u64>,
 }
 
 impl HoneyBeeMetrics {
     fn new(meter: &Meter) -> Self {
         Self {
-            // Block I/O
-            block_io_events: meter
-                .u64_counter("block_io_events")
-                .with_description("Number of block I/O events")
-                .with_unit("events")
-                .build(),
-            block_io_bytes: meter
-                .u64_counter("block_io_bytes")
-                .with_description("Total bytes of block I/O operations")
-                .with_unit("bytes")
-                .build(),
-            block_io_latency_ns: meter
-                .u64_histogram("block_io_latency_ns")
-                .with_description("Block I/O operation latency in nanoseconds")
-                .with_unit("ns")
-                .build(),
-                
-            // Network
-            network_latency_ns: meter
-                .u64_histogram("network_latency_ns")
-                .with_description("Network operation latency in nanoseconds")
-                .with_unit("ns")
-                .build(),
+            // === Network ===
             tcp_connect_events: meter
                 .u64_counter("tcp_connect_events")
                 .with_description("Number of TCP connection attempts")
@@ -118,7 +89,7 @@ impl HoneyBeeMetrics {
                 .with_unit("ns")
                 .build(),
                 
-            // Filesystem
+            // === Filesystem ===
             vfs_read_events: meter
                 .u64_counter("vfs_read_events")
                 .with_description("Number of VFS read operations")
@@ -140,7 +111,7 @@ impl HoneyBeeMetrics {
                 .with_unit("events")
                 .build(),
                 
-            // Scheduler
+            // === Scheduler ===
             runqueue_latency_ns: meter
                 .u64_histogram("runqueue_latency_ns")
                 .with_description("Time spent waiting in run queue")
@@ -154,13 +125,6 @@ impl HoneyBeeMetrics {
             context_switch_events: meter
                 .u64_counter("context_switch_events")
                 .with_description("Number of context switches")
-                .with_unit("events")
-                .build(),
-                
-            // GPU
-            gpu_open_events: meter
-                .u64_counter("gpu_open_events")
-                .with_description("Number of GPU device open events")
                 .with_unit("events")
                 .build(),
         }
@@ -250,38 +214,6 @@ pub fn metrics() -> Option<&'static HoneyBeeMetrics> {
     METRICS.get()
 }
 
-pub fn record_block_io_event(event_type: &str, bytes: u64, latency_ns: Option<u64>, device: &str) {
-    if let Some(m) = metrics() {
-        let attrs = [
-            KeyValue::new("event_type", event_type.to_string()),
-            KeyValue::new("device", device.to_string()),
-        ];
-
-        m.block_io_events.add(1, &attrs);
-        m.block_io_bytes.add(bytes, &attrs);
-
-        if let Some(lat) = latency_ns {
-            m.block_io_latency_ns.record(lat, &attrs);
-        }
-    }
-}
-
-pub fn record_network_latency(latency_ns: u64, protocol: &str) {
-    if let Some(m) = metrics() {
-        let attrs = [KeyValue::new("protocol", protocol.to_string())];
-        m.network_latency_ns.record(latency_ns, &attrs);
-    }
-}
-
-pub fn record_gpu_open_event(device_path: &str) {
-    if let Some(m) = metrics() {
-        let attrs = [KeyValue::new("device", device_path.to_string())];
-        m.gpu_open_events.add(1, &attrs);
-    }
-}
-
-/// Record active probe count
-/// Updates the global active probes map for ObservableGauge callback
 pub fn record_active_probe(probe_name: &str, count: u64) {
     // Update the global map (ObservableGauge callback reads from this)
     if let Ok(mut probes) = active_probes_map().write() {
@@ -403,63 +335,63 @@ pub fn record_offcpu_event(
             KeyValue::new("process", comm.to_string()),
             KeyValue::new("cgroup_id", cgroup_id as i64),
         ];
-        m.offcpu_duration_ns.record(duration_ns, &attrs);
-        m.context_switch_events.add(1, &attrs);
-    }
-}
+        m.offcpu_duration_ns.record(duration_ns, &attrs);", cgroup_id as i64),
+        m.context_switch_events.add(1, &attrs);        ];
+    }n_ns.record(duration_ns, &attrs);
+}switch_events.add(1, &attrs);
 
 /// Shutdown OpenTelemetry (graceful shutdown)
 /// Flushes pending metrics and shuts down the MeterProvider
-pub fn shutdown_metrics() {
-    info!("Shutting down OpenTelemetry metrics...");
+pub fn shutdown_metrics() {lemetry (graceful shutdown)
+    info!("Shutting down OpenTelemetry metrics..."); Flushes pending metrics and shuts down the MeterProvider
     if let Some(provider) = METER_PROVIDER.get() {
-        if let Err(e) = provider.shutdown() {
+        if let Err(e) = provider.shutdown() {own OpenTelemetry metrics...");
             log::warn!("Failed to shutdown MeterProvider: {}", e);
         } else {
-            info!("OpenTelemetry metrics shutdown complete");
-        }
-    }
+            info!("OpenTelemetry metrics shutdown complete"); {}", e);
+        }else {
+    }    info!("OpenTelemetry metrics shutdown complete");
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use serial_test::serial;
+    use super::*;t)]
+    use serial_test::serial;s {
 
-    #[test]
+    #[test]se serial_test::serial;
     #[serial]
-    fn test_get_otlp_endpoint_not_set() {
+    fn test_get_otlp_endpoint_not_set() {    #[test]
         // Returns None if environment variable is not set
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
-        assert!(get_otlp_endpoint().is_none());
-    }
-
-    #[test]
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");p_endpoint_not_set() {
+        assert!(get_otlp_endpoint().is_none());ns None if environment variable is not set
+    }v::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+_otlp_endpoint().is_none());
+    #[test] }
     #[serial]
     fn test_get_otlp_endpoint_empty() {
         // Returns None if environment variable is empty
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "");
-        assert!(get_otlp_endpoint().is_none());
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
-    }
-
+        assert!(get_otlp_endpoint().is_none());y
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");"");
+    }sert!(get_otlp_endpoint().is_none());
+OTLP_ENDPOINT");
     #[test]
     #[serial]
-    fn test_get_otlp_endpoint_from_env() {
+    fn test_get_otlp_endpoint_from_env() {    #[test]
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
-
+    fn test_get_otlp_endpoint_from_env() {
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, Some("http://custom:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
-    }
-
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");= get_otlp_endpoint();
+    }tom:4317".to_string()));
+NT");
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_adds_http_prefix() {
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
-
-        let endpoint = get_otlp_endpoint();
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");[serial]
+   fn test_get_otlp_endpoint_adds_http_prefix() {
+        let endpoint = get_otlp_endpoint();        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
         assert_eq!(endpoint, Some("http://collector:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
-    }
-}
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");= get_otlp_endpoint();
+    }!(endpoint, Some("http://collector:4317".to_string()));
+}v::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");

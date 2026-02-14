@@ -1,4 +1,14 @@
-//! Scheduler probes for CPU scheduling analysis and latency debugging.
+//! Scheduler observability probes.
+//!
+//! ## Probes
+//! - **RunqueueLatencyProbe**: Measure time waiting in CPU run queue
+//! - **OffCpuProbe**: Analyze why tasks are blocked (off-CPU)
+//!
+//! ## Why eBPF for Scheduler?
+//! - See inside kernel scheduler (invisible to profilers)
+//! - Identify CPU contention and noisy neighbors
+//! - Debug "low CPU but slow" problems (off-CPU time)
+//! - Track who woke a blocked task
 
 pub mod runqueue;
 pub mod offcpu;
