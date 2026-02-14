@@ -128,7 +128,6 @@ Since the agent pushes metrics via OTLP, you must have an OTel Collector running
 | **Log Level** | `rustLog` | `RUST_LOG` |
 | **OTLP Endpoint** | `output.otlp.endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` |
 | **Service Name** | (Internal template) | `OTEL_SERVICE_NAME` |
-| **Block I/O Probe** | `builtinProbes.block_io.enabled` | `BUILTIN_PROBES__BLOCK_IO` |
 | **Network Probe** | `builtinProbes.network_latency.enabled` | `BUILTIN_PROBES__NETWORK_LATENCY` |
 
 ---
@@ -166,8 +165,5 @@ curl http://localhost:8889/metrics | grep honeybeepf_
 
 | Metric Name | Type | Description |
 |-------------|------|-------------|
-| `honeybeepf_block_io_events_total` | Counter | Number of Block I/O events |
-| `honeybeepf_block_io_bytes_total` | Counter | Total Block I/O bytes |
-| `honeybeepf_block_io_latency_ns` | Histogram | Block I/O latency (nanoseconds) |
 | `honeybeepf_network_latency_ns` | Histogram | Network latency (nanoseconds) |
 | `honeybeepf_active_probes` | Gauge | Number of currently active eBPF probes |

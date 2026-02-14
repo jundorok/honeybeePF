@@ -15,7 +15,6 @@ pub mod probes;
 use crate::probes::{
     Probe,
     builtin::{
-        block_io::BlockIoProbe,
         llm::{
             ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
             setup_exec_watch,
@@ -113,11 +112,6 @@ impl HoneyBeeEngine {
             NetworkLatencyProbe.attach(&mut self.bpf)?;
             // Note: network_latency probe currently logs connection events only,
             // latency measurement not yet implemented
-        }
-
-        if self.settings.builtin_probes.block_io.unwrap_or(false) {
-            BlockIoProbe.attach(&mut self.bpf)?;
-            telemetry::record_active_probe("block_io", 1);
         }
 
         if self.settings.builtin_probes.llm.unwrap_or(false) {
