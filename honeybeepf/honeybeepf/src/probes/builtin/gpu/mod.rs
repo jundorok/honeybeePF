@@ -1,8 +1,6 @@
-//! GPU-related userspace probe handlers.
-//!
-//! This module contains all userspace handlers for GPU monitoring:
-//! - `usage`: GPU device open/close event handling
-//! - `nccl`: NCCL collective communication event handling
-
-pub mod nccl;
-pub mod usage;
+//! GPU probes - currently disabled.
+//! 
+//! GPU monitoring is better handled by NVIDIA tools (DCGM, nsys, nvidia-smi).
+//! eBPF is not the right tool for GPU internals.
+//! 
+//! NCCL probes removed - use NCCL_DEBUG=INFO or nsys instead

@@ -38,19 +38,38 @@ fn active_probes_map() -> &'static RwLock<HashMap<String, u64>> {
 ///
 /// Note: Do NOT add _total suffix to Counter names (Prometheus adds it automatically)
 pub struct HoneyBeeMetrics {
+    // Block I/O metrics
     pub block_io_events: Counter<u64>,
     pub block_io_bytes: Counter<u64>,
     pub block_io_latency_ns: Histogram<u64>,
+    
+    // Network metrics
     pub network_latency_ns: Histogram<u64>,
+    pub tcp_connect_events: Counter<u64>,
+    pub tcp_connect_latency_ns: Histogram<u64>,
+    pub tcp_retrans_events: Counter<u64>,
+    pub dns_query_events: Counter<u64>,
+    pub dns_query_latency_ns: Histogram<u64>,
+    
+    // Filesystem metrics
+    pub vfs_read_events: Counter<u64>,
+    pub vfs_write_events: Counter<u64>,
+    pub vfs_latency_ns: Histogram<u64>,
+    pub file_access_events: Counter<u64>,
+    
+    // Scheduler metrics
+    pub runqueue_latency_ns: Histogram<u64>,
+    pub offcpu_duration_ns: Histogram<u64>,
+    pub context_switch_events: Counter<u64>,
+    
+    // GPU metrics (kept for compatibility)
     pub gpu_open_events: Counter<u64>,
-    // Note: active_probes is registered as ObservableGauge in init_metrics()
 }
 
 impl HoneyBeeMetrics {
     fn new(meter: &Meter) -> Self {
-        // Note: Do NOT add _total suffix to Counter names!
-        // Prometheus automatically adds _total suffix
         Self {
+            // Block I/O
             block_io_events: meter
                 .u64_counter("block_io_events")
                 .with_description("Number of block I/O events")
@@ -66,11 +85,79 @@ impl HoneyBeeMetrics {
                 .with_description("Block I/O operation latency in nanoseconds")
                 .with_unit("ns")
                 .build(),
+                
+            // Network
             network_latency_ns: meter
                 .u64_histogram("network_latency_ns")
                 .with_description("Network operation latency in nanoseconds")
                 .with_unit("ns")
                 .build(),
+            tcp_connect_events: meter
+                .u64_counter("tcp_connect_events")
+                .with_description("Number of TCP connection attempts")
+                .with_unit("events")
+                .build(),
+            tcp_connect_latency_ns: meter
+                .u64_histogram("tcp_connect_latency_ns")
+                .with_description("TCP connection establishment latency")
+                .with_unit("ns")
+                .build(),
+            tcp_retrans_events: meter
+                .u64_counter("tcp_retrans_events")
+                .with_description("Number of TCP retransmission events")
+                .with_unit("events")
+                .build(),
+            dns_query_events: meter
+                .u64_counter("dns_query_events")
+                .with_description("Number of DNS queries")
+                .with_unit("events")
+                .build(),
+            dns_query_latency_ns: meter
+                .u64_histogram("dns_query_latency_ns")
+                .with_description("DNS query latency")
+                .with_unit("ns")
+                .build(),
+                
+            // Filesystem
+            vfs_read_events: meter
+                .u64_counter("vfs_read_events")
+                .with_description("Number of VFS read operations")
+                .with_unit("events")
+                .build(),
+            vfs_write_events: meter
+                .u64_counter("vfs_write_events")
+                .with_description("Number of VFS write operations")
+                .with_unit("events")
+                .build(),
+            vfs_latency_ns: meter
+                .u64_histogram("vfs_latency_ns")
+                .with_description("VFS operation latency")
+                .with_unit("ns")
+                .build(),
+            file_access_events: meter
+                .u64_counter("file_access_events")
+                .with_description("Number of monitored file access events")
+                .with_unit("events")
+                .build(),
+                
+            // Scheduler
+            runqueue_latency_ns: meter
+                .u64_histogram("runqueue_latency_ns")
+                .with_description("Time spent waiting in run queue")
+                .with_unit("ns")
+                .build(),
+            offcpu_duration_ns: meter
+                .u64_histogram("offcpu_duration_ns")
+                .with_description("Time spent off-CPU (blocked)")
+                .with_unit("ns")
+                .build(),
+            context_switch_events: meter
+                .u64_counter("context_switch_events")
+                .with_description("Number of context switches")
+                .with_unit("events")
+                .build(),
+                
+            // GPU
             gpu_open_events: meter
                 .u64_counter("gpu_open_events")
                 .with_description("Number of GPU device open events")
@@ -200,6 +287,124 @@ pub fn record_active_probe(probe_name: &str, count: u64) {
     if let Ok(mut probes) = active_probes_map().write() {
         probes.insert(probe_name.to_string(), count);
         info!("Active probe registered: {} = {}", probe_name, count);
+    }
+}
+
+// === Network metric helpers ===
+
+pub fn record_tcp_connect_event(
+    daddr: &str,
+    dport: u16,
+    latency_ns: u64,
+    success: bool,
+    cgroup_id: u64,
+) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("dest_addr", daddr.to_string()),
+            KeyValue::new("dest_port", dport as i64),
+            KeyValue::new("success", success),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        m.tcp_connect_events.add(1, &attrs);
+        m.tcp_connect_latency_ns.record(latency_ns, &attrs);
+    }
+}
+
+pub fn record_tcp_retrans_event(daddr: &str, dport: u16, state: &str, cgroup_id: u64) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("dest_addr", daddr.to_string()),
+            KeyValue::new("dest_port", dport as i64),
+            KeyValue::new("tcp_state", state.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        m.tcp_retrans_events.add(1, &attrs);
+    }
+}
+
+pub fn record_dns_query_event(query_name: &str, query_type: &str, latency_ns: u64, cgroup_id: u64) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("query_name", query_name.to_string()),
+            KeyValue::new("query_type", query_type.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        m.dns_query_events.add(1, &attrs);
+        m.dns_query_latency_ns.record(latency_ns, &attrs);
+    }
+}
+
+// === Filesystem metric helpers ===
+
+pub fn record_vfs_event(
+    op_type: &str,
+    filename: &str,
+    bytes: u64,
+    latency_ns: u64,
+    cgroup_id: u64,
+) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("operation", op_type.to_string()),
+            KeyValue::new("filename", filename.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        
+        match op_type {
+            "read" => m.vfs_read_events.add(1, &attrs),
+            "write" => m.vfs_write_events.add(1, &attrs),
+            _ => {}
+        }
+        
+        m.vfs_latency_ns.record(latency_ns, &attrs);
+    }
+}
+
+pub fn record_file_access_event(
+    filename: &str,
+    flags: &str,
+    comm: &str,
+    cgroup_id: u64,
+) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("filename", filename.to_string()),
+            KeyValue::new("flags", flags.to_string()),
+            KeyValue::new("process", comm.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        m.file_access_events.add(1, &attrs);
+    }
+}
+
+// === Scheduler metric helpers ===
+
+pub fn record_runqueue_latency(latency_ns: u64, cpu: u32, comm: &str, cgroup_id: u64) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("cpu", cpu as i64),
+            KeyValue::new("process", comm.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        m.runqueue_latency_ns.record(latency_ns, &attrs);
+    }
+}
+
+pub fn record_offcpu_event(
+    duration_ns: u64,
+    reason: &str,
+    comm: &str,
+    cgroup_id: u64,
+) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("reason", reason.to_string()),
+            KeyValue::new("process", comm.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        m.offcpu_duration_ns.record(duration_ns, &attrs);
+        m.context_switch_events.add(1, &attrs);
     }
 }
 

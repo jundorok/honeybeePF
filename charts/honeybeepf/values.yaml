@@ -3,7 +3,7 @@ fullnameOverride: ""
 
 image:
   repository: "docker.io/dorokrok/honeybeepf"
-  tag: "latest"
+  tag: "pr-48"
   pullPolicy: IfNotPresent
 imagePullSecrets: [] 
 podAnnotations: {}
@@ -29,7 +29,7 @@ rustLog: "info"
 
 builtinProbes:
   block_io:
-    enabled: true
+    enabled: false
   network_latency:
     enabled: false
   # GPU probes (hierarchical configuration)
@@ -39,9 +39,9 @@ builtinProbes:
       enabled: false
     # NCCL collective communication monitoring
     nccl:
-      enabled: false
+      enabled: true
       # Optional: Override libnccl.so path (auto-detected by default)
-      libPath: "/usr/lib/x86_64-linux-gnu/libnccl.so.2"
+      libPath: /usr/lib/x86_64-linux-gnu/libnccl.so.2.19.4
   llm:
     enabled: false
     # Custom providers config (optional). Built-in: OpenAI, Anthropic, Gemini
@@ -85,9 +85,10 @@ resources:
   requests:
     cpu: "200m"
     memory: "512Mi"
-
-nodeSelector:
-  kubernetes.io/os: linux
+tolerations:
+  - key: "nvidia.com/gpu"
+    operator: "Exists"
+    effect: "NoSchedule"
 
 # Debug mode
 debug: false

@@ -1,0 +1,103 @@
+# ============================================================
+# Step 2: ncclGetVersion 테스트 (GPU 불필요)
+# - eBPF uprobe → RingBuf → userspace 전체 파이프라인 검증
+# - ncclGetVersion은 GPU 없이도 호출 가능
+# - HoneyBeePF의 nccl_get_version_enter/exit probe 동작 확인
+# ============================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nccl-getversion-test
+  namespace: test2
+  labels:
+    app: honeybeepf-test
+    stage: "2-getversion"
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: nccl-getversion-test
+    spec:
+      restartPolicy: Never
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+
+      containers:
+      - name: getversion-test
+        image: nvcr.io/nvidia/pytorch:24.01-py3
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "=========================================="
+          echo "  Step 2: ncclGetVersion Uprobe Test"
+          echo "=========================================="
+
+          # C 테스트 프로그램 작성
+          cat > /tmp/test_getversion.c << 'EOF'
+          #include <stdio.h>
+          #include <unistd.h>
+
+          // NCCL header가 없어도 dlsym으로 호출 가능
+          #include <dlfcn.h>
+
+          typedef int (*ncclGetVersion_t)(int* version);
+
+          int main() {
+              void* handle = dlopen("libnccl.so.2", RTLD_LAZY);
+              if (!handle) {
+                  fprintf(stderr, "Failed to load libnccl.so.2: %s\n", dlerror());
+                  return 1;
+              }
+
+              ncclGetVersion_t getVersion = (ncclGetVersion_t)dlsym(handle, "ncclGetVersion");
+              if (!getVersion) {
+                  fprintf(stderr, "Failed to find ncclGetVersion: %s\n", dlerror());
+                  dlclose(handle);
+                  return 1;
+              }
+
+              printf("PID: %d\n", getpid());
+              printf("Starting ncclGetVersion calls...\n");
+              printf("(HoneyBeePF should capture these events)\n\n");
+
+              int version;
+              for (int i = 0; i < 100; i++) {
+                  int result = getVersion(&version);
+                  if (i % 10 == 0) {
+                      printf("[%3d/100] ncclGetVersion returned: %d (NCCL %d.%d.%d), result=%d\n",
+                             i + 1,
+                             version,
+                             version / 10000,
+                             (version % 10000) / 100,
+                             version % 100,
+                             result);
+                  }
+                  usleep(100000); // 100ms 간격 - eBPF에서 확인하기 편하게
+              }
+
+              printf("\nDone. 100 ncclGetVersion calls completed.\n");
+              printf("Check HoneyBeePF logs/metrics for 100 GetVersion events.\n");
+
+              dlclose(handle);
+              return 0;
+          }
+          EOF
+
+          # 컴파일 & 실행
+          gcc -o /tmp/test_getversion /tmp/test_getversion.c -ldl
+          echo ""
+          echo "Running test (PID will be shown - use it to verify uprobe attach)..."
+          echo ""
+          /tmp/test_getversion
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+        # GPU 리소스 요청 안 함 - ncclGetVersion은 GPU 불필요

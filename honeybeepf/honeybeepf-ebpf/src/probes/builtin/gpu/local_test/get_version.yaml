@@ -1,0 +1,112 @@
+# ============================================================
+# Step 0: NCCL 심볼 확인 Job
+# - libnccl.so 에서 uprobe attach 가능한 심볼 존재 확인
+# - GPU 불필요, 아무 노드에서 실행 가능
+# ============================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nccl-symbol-check
+  namespace: test2
+  labels:
+    app: honeybeepf-test
+    stage: "0-preflight"
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: nccl-symbol-check
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: checker
+        image: nvcr.io/nvidia/pytorch:24.01-py3
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          echo "=========================================="
+          echo "  HoneyBeePF NCCL Symbol Preflight Check"
+          echo "=========================================="
+          echo ""
+
+          # 1) libnccl.so 위치 찾기
+          echo "[1/4] Searching for libnccl.so..."
+          NCCL_PATH=$(find / -name "libnccl.so*" -type f 2>/dev/null | head -5)
+          if [ -z "$NCCL_PATH" ]; then
+            echo "FAIL: libnccl.so not found!"
+            exit 1
+          fi
+          echo "Found:"
+          echo "$NCCL_PATH"
+          NCCL_LIB=$(echo "$NCCL_PATH" | head -1)
+          echo ""
+          echo "Using: $NCCL_LIB"
+          echo ""
+
+          # 2) NCCL 버전 확인
+          echo "[2/4] NCCL version info..."
+          strings "$NCCL_LIB" | grep -i "NCCL version" | head -3
+          echo ""
+
+          # 3) HoneyBeePF가 probe하는 심볼 확인
+          echo "[3/4] Checking uprobe target symbols..."
+          echo "-------------------------------------------"
+          SYMBOLS=(
+            "ncclAllReduce"
+            "ncclBroadcast"
+            "ncclAllGather"
+            "ncclReduceScatter"
+            "ncclSend"
+            "ncclRecv"
+            "ncclGroupStart"
+            "ncclGroupEnd"
+            "ncclGetVersion"
+          )
+
+          ALL_OK=true
+          for sym in "${SYMBOLS[@]}"; do
+            RESULT=$(nm -D "$NCCL_LIB" 2>/dev/null | grep -w "$sym" || true)
+            if [ -n "$RESULT" ]; then
+              TYPE=$(echo "$RESULT" | awk '{print $2}')
+              echo "  OK   $sym ($TYPE)"
+            else
+              echo "  FAIL $sym - NOT FOUND"
+              ALL_OK=false
+            fi
+          done
+
+          echo "-------------------------------------------"
+          echo ""
+
+          # 4) Full dynamic symbol table dump (참고용)
+          echo "[4/4] All NCCL public symbols (nccl*):"
+          nm -D "$NCCL_LIB" 2>/dev/null | grep -i "nccl" | head -30
+          echo ""
+
+          if [ "$ALL_OK" = true ]; then
+            echo "============================================"
+            echo "  ALL SYMBOLS FOUND - Ready for HoneyBeePF"
+            echo "============================================"
+            echo ""
+            echo "libnccl.so path for uprobe attach:"
+            echo "  $NCCL_LIB"
+            echo ""
+            echo "In container overlay, host path will be different."
+            echo "Use: cat /proc/<PID>/maps | grep libnccl"
+          else
+            echo "WARNING: Some symbols missing. Check NCCL version."
+            exit 1
+          fi
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
