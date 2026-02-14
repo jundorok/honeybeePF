@@ -1,16 +1,3 @@
-//! File access auditing probe.
-//!
-//! ## Why eBPF?
-//! - **Real-time alerts**: Know immediately when sensitive files are accessed
-//! - **No auditd overhead**: Selective monitoring, not all syscalls
-//! - **Container-aware**: Filter by cgroup, see which pod accessed what
-//!
-//! ## Use Cases
-//! - Security auditing (sensitive file access)
-//! - Compliance monitoring
-//! - Detecting credential theft attempts
-//! - Tracking configuration file changes
-
 use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;

@@ -1,20 +1,3 @@
-//! TCP connection tracking probe.
-//!
-//! Monitors TCP connect() calls to track outbound connections,
-//! measure connection establishment latency, and detect connection failures.
-//!
-//! ## Why eBPF?
-//! - **No application modification**: Works with any TCP application
-//! - **Low overhead**: Kernel-level filtering, only interesting events reach userspace
-//! - **Connection failures**: See failed connections that never appear in netstat
-//! - **Latency measurement**: Precise kernel timestamps for connection time
-//!
-//! ## Use Cases
-//! - Service dependency mapping (who connects to whom)
-//! - Connection latency SLO monitoring
-//! - Detecting connection storms or retry loops
-//! - Debugging network issues in containerized environments
-
 use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;

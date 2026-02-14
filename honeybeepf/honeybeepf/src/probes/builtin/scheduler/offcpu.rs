@@ -1,16 +1,3 @@
-//! Off-CPU analysis probe.
-//!
-//! ## Why eBPF?
-//! - **See what's invisible**: Profilers show on-CPU time, this shows blocked time
-//! - **Root cause identification**: Know WHY a task was blocked (I/O, lock, etc.)
-//! - **Waker tracking**: See which task woke the blocked task
-//!
-//! ## Use Cases
-//! - Latency debugging ("why is my app slow but CPU usage is low?")
-//! - Lock contention analysis
-//! - I/O wait identification
-//! - Tail latency investigation
-
 use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;

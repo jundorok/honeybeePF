@@ -1,16 +1,3 @@
-//! TCP retransmission monitoring probe.
-//!
-//! ## Why eBPF?
-//! - **Real-time detection**: Know immediately when retransmissions occur
-//! - **Per-connection context**: See which connections are problematic
-//! - **No packet capture overhead**: Kernel-level event, not pcap
-//!
-//! ## Use Cases
-//! - Network quality monitoring
-//! - Detecting packet loss hotspots
-//! - Diagnosing application latency caused by network issues
-//! - Alerting on abnormal retransmission rates
-
 use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;

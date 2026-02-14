@@ -1,16 +1,3 @@
-//! Run queue latency probe.
-//!
-//! ## Why eBPF?
-//! - **Kernel internals visibility**: See scheduler queue state
-//! - **Per-task granularity**: Know exactly which tasks are starving
-//! - **Low overhead**: Only report when latency exceeds threshold
-//!
-//! ## Use Cases
-//! - CPU contention analysis
-//! - Detecting CPU-bound workload interference
-//! - SLO monitoring for latency-sensitive services
-//! - Noisy neighbor detection in shared environments
-
 use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;

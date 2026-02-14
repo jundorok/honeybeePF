@@ -1,16 +1,3 @@
-//! VFS latency monitoring probe.
-//!
-//! ## Why eBPF?
-//! - **Pre-filtering**: Only report slow I/O (> threshold), reducing noise
-//! - **Filesystem-agnostic**: Works with ext4, xfs, nfs, etc.
-//! - **Per-operation context**: Know which file and process caused slow I/O
-//!
-//! ## Use Cases
-//! - Storage latency SLO monitoring
-//! - Detecting storage bottlenecks
-//! - NFS/network filesystem performance debugging
-//! - Identifying I/O-heavy processes
-
 use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;

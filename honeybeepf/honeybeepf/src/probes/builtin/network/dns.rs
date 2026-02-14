@@ -1,16 +1,3 @@
-//! DNS query monitoring probe.
-//!
-//! ## Why eBPF?
-//! - **No DNS server access needed**: Monitor from client side
-//! - **Application-transparent**: No resolver library patching
-//! - **Full query visibility**: See all DNS queries, even from static binaries
-//!
-//! ## Use Cases
-//! - Service dependency discovery via DNS
-//! - Detecting DNS tunneling or exfiltration
-//! - Debugging DNS resolution issues
-//! - Monitoring DNS latency
-
 use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;
