@@ -10,6 +10,7 @@ const AF_INET: u16 = 2;
 const MAX_EVENT_SIZE: u32 = 1024 * 1024;
 
 #[repr(C)]
+#[allow(dead_code)]
 struct SockaddrIn {
     sin_family: u16,
     sin_port: u16,
