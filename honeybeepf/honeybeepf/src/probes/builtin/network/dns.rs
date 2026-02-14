@@ -51,39 +51,39 @@ impl Probe for DnsProbe {
     fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
         // Attach to getaddrinfo in libc
         let libc_path = find_libc_path()?;
-        
+
         let program: &mut UProbe = bpf
             .program_mut("getaddrinfo_entry")
             .context("Failed to find getaddrinfo_entry program")?
             .try_into()
             .context("Program is not a UProbe")?;
-        
+
         program.load()?;
         program
             .attach(Some("getaddrinfo"), 0, &libc_path, None)
             .context("Failed to attach uprobe to getaddrinfo")?;
-        
+
         info!("Attached uprobe: getaddrinfo @ {}", libc_path);
-        
+
         // Attach uretprobe for latency measurement
         let program_ret: &mut UProbe = bpf
             .program_mut("getaddrinfo_exit")
             .context("Failed to find getaddrinfo_exit program")?
             .try_into()
             .context("Program is not a UProbe")?;
-        
+
         program_ret.load()?;
         program_ret
             .attach(Some("getaddrinfo"), 0, &libc_path, None)
             .context("Failed to attach uretprobe to getaddrinfo")?;
-        
+
         info!("Attached uretprobe: getaddrinfo @ {}", libc_path);
-        
+
         self.spawn_event_handler(bpf)?;
-        
+
         telemetry::record_active_probe("dns", 1);
         info!("DnsProbe attached successfully");
-        
+
         Ok(())
     }
 }
@@ -96,27 +96,26 @@ impl DnsProbe {
         )?;
 
         let running = self.running.clone();
-        
+
         std::thread::spawn(move || {
             let mut ring_buf = ring_buf;
-            
+
             while running.load(Ordering::Relaxed) {
                 if let Some(item) = ring_buf.next() {
                     if item.len() >= std::mem::size_of::<DnsEvent>() {
-                        let event: DnsEvent = unsafe {
-                            std::ptr::read_unaligned(item.as_ptr() as *const DnsEvent)
-                        };
-                        
+                        let event: DnsEvent =
+                            unsafe { std::ptr::read_unaligned(item.as_ptr() as *const DnsEvent) };
+
                         let comm = std::str::from_utf8(&event.comm)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let query_name = std::str::from_utf8(&event.query_name)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let query_type = dns_type_name(event.query_type);
-                        
+
                         info!(
                             "DNS_QUERY pid={} comm={} name={} type={} latency={}µs cgroup={}",
                             event.pid,
@@ -126,7 +125,7 @@ impl DnsProbe {
                             event.latency_ns / 1000,
                             event.cgroup_id,
                         );
-                        
+
                         telemetry::record_dns_query_event(
                             query_name,
                             query_type,
@@ -138,7 +137,7 @@ impl DnsProbe {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         });
-        
+
         Ok(())
     }
 }
@@ -150,13 +149,13 @@ fn find_libc_path() -> Result<String> {
         "/lib64/libc.so.6",
         "/usr/lib/libc.so.6",
     ];
-    
+
     for path in paths {
         if std::path::Path::new(path).exists() {
             return Ok(path.to_string());
         }
     }
-    
+
     anyhow::bail!("Could not find libc.so")
 }
 

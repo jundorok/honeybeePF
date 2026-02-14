@@ -19,7 +19,7 @@ use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;
 use aya::programs::KProbe;
-use log::{info, warn, debug};
+use log::{debug, info, warn};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -62,12 +62,12 @@ impl Probe for TcpConnectProbe {
             .context("Failed to find tcp_v4_connect_entry program")?
             .try_into()
             .context("Program is not a KProbe")?;
-        
+
         tcp_connect_entry.load()?;
         tcp_connect_entry
             .attach("tcp_v4_connect", 0)
             .context("Failed to attach tcp_v4_connect_entry")?;
-        
+
         info!("Attached kprobe: tcp_v4_connect (entry)");
 
         // Attach kretprobe to tcp_v4_connect exit
@@ -76,20 +76,20 @@ impl Probe for TcpConnectProbe {
             .context("Failed to find tcp_v4_connect_exit program")?
             .try_into()
             .context("Program is not a KProbe")?;
-        
+
         tcp_connect_exit.load()?;
         tcp_connect_exit
             .attach("tcp_v4_connect", 0)
             .context("Failed to attach tcp_v4_connect_exit")?;
-        
+
         info!("Attached kretprobe: tcp_v4_connect (exit)");
 
         // Spawn event handler
         self.spawn_event_handler(bpf)?;
-        
+
         telemetry::record_active_probe("tcp_connect", 1);
         info!("TcpConnectProbe attached successfully");
-        
+
         Ok(())
     }
 }
@@ -102,25 +102,25 @@ impl TcpConnectProbe {
         )?;
 
         let running = self.running.clone();
-        
+
         std::thread::spawn(move || {
             let mut ring_buf = ring_buf;
-            
+
             while running.load(Ordering::Relaxed) {
                 if let Some(item) = ring_buf.next() {
                     if item.len() >= std::mem::size_of::<TcpConnectEvent>() {
                         let event: TcpConnectEvent = unsafe {
                             std::ptr::read_unaligned(item.as_ptr() as *const TcpConnectEvent)
                         };
-                        
+
                         let comm = std::str::from_utf8(&event.comm)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let daddr = format_ipv4(event.daddr);
                         let saddr = format_ipv4(event.saddr);
                         let success = event.ret_code == 0;
-                        
+
                         info!(
                             "TCP_CONNECT pid={} comm={} {}:{} -> {}:{} latency={}µs ret={} cgroup={}",
                             event.pid,
@@ -133,7 +133,7 @@ impl TcpConnectProbe {
                             event.ret_code,
                             event.cgroup_id,
                         );
-                        
+
                         // Send metrics
                         telemetry::record_tcp_connect_event(
                             &daddr,
@@ -147,7 +147,7 @@ impl TcpConnectProbe {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         });
-        
+
         Ok(())
     }
 }

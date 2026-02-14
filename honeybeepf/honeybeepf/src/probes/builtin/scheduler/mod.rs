@@ -10,8 +10,8 @@
 //! - Debug "low CPU but slow" problems (off-CPU time)
 //! - Track who woke a blocked task
 
-pub mod runqueue;
 pub mod offcpu;
+pub mod runqueue;
 
-pub use runqueue::RunqueueLatencyProbe;
 pub use offcpu::OffCpuProbe;
+pub use runqueue::RunqueueLatencyProbe;

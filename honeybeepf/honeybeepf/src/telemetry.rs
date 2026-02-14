@@ -46,13 +46,13 @@ pub struct HoneyBeeMetrics {
     pub tcp_retrans_events: Counter<u64>,
     pub dns_query_events: Counter<u64>,
     pub dns_query_latency_ns: Histogram<u64>,
-    
+
     // === Filesystem metrics ===
     pub vfs_read_events: Counter<u64>,
     pub vfs_write_events: Counter<u64>,
     pub vfs_latency_ns: Histogram<u64>,
     pub file_access_events: Counter<u64>,
-    
+
     // === Scheduler metrics ===
     pub runqueue_latency_ns: Histogram<u64>,
     pub offcpu_duration_ns: Histogram<u64>,
@@ -88,7 +88,7 @@ impl HoneyBeeMetrics {
                 .with_description("DNS query latency")
                 .with_unit("ns")
                 .build(),
-                
+
             // === Filesystem ===
             vfs_read_events: meter
                 .u64_counter("vfs_read_events")
@@ -110,7 +110,7 @@ impl HoneyBeeMetrics {
                 .with_description("Number of monitored file access events")
                 .with_unit("events")
                 .build(),
-                
+
             // === Scheduler ===
             runqueue_latency_ns: meter
                 .u64_histogram("runqueue_latency_ns")
@@ -282,23 +282,18 @@ pub fn record_vfs_event(
             KeyValue::new("filename", filename.to_string()),
             KeyValue::new("cgroup_id", cgroup_id as i64),
         ];
-        
+
         match op_type {
             "read" => m.vfs_read_events.add(1, &attrs),
             "write" => m.vfs_write_events.add(1, &attrs),
             _ => {}
         }
-        
+
         m.vfs_latency_ns.record(latency_ns, &attrs);
     }
 }
 
-pub fn record_file_access_event(
-    filename: &str,
-    flags: &str,
-    comm: &str,
-    cgroup_id: u64,
-) {
+pub fn record_file_access_event(filename: &str, flags: &str, comm: &str, cgroup_id: u64) {
     if let Some(m) = metrics() {
         let attrs = [
             KeyValue::new("filename", filename.to_string()),
@@ -323,75 +318,68 @@ pub fn record_runqueue_latency(latency_ns: u64, cpu: u32, comm: &str, cgroup_id:
     }
 }
 
-pub fn record_offcpu_event(
-    duration_ns: u64,
-    reason: &str,
-    comm: &str,
-    cgroup_id: u64,
-) {
+pub fn record_offcpu_event(duration_ns: u64, reason: &str, comm: &str, cgroup_id: u64) {
     if let Some(m) = metrics() {
         let attrs = [
             KeyValue::new("reason", reason.to_string()),
             KeyValue::new("process", comm.to_string()),
             KeyValue::new("cgroup_id", cgroup_id as i64),
         ];
-        m.offcpu_duration_ns.record(duration_ns, &attrs);", cgroup_id as i64),
-        m.context_switch_events.add(1, &attrs);        ];
-    }n_ns.record(duration_ns, &attrs);
-}switch_events.add(1, &attrs);
+        m.offcpu_duration_ns.record(duration_ns, &attrs);
+        m.context_switch_events.add(1, &attrs);
+    }
+}
 
 /// Shutdown OpenTelemetry (graceful shutdown)
 /// Flushes pending metrics and shuts down the MeterProvider
-pub fn shutdown_metrics() {lemetry (graceful shutdown)
-    info!("Shutting down OpenTelemetry metrics..."); Flushes pending metrics and shuts down the MeterProvider
+pub fn shutdown_metrics() {
+    info!("Shutting down OpenTelemetry metrics...");
     if let Some(provider) = METER_PROVIDER.get() {
-        if let Err(e) = provider.shutdown() {own OpenTelemetry metrics...");
+        if let Err(e) = provider.shutdown() {
             log::warn!("Failed to shutdown MeterProvider: {}", e);
         } else {
-            info!("OpenTelemetry metrics shutdown complete"); {}", e);
-        }else {
-    }    info!("OpenTelemetry metrics shutdown complete");
+            info!("OpenTelemetry metrics shutdown complete");
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;t)]
-    use serial_test::serial;s {
+    use super::*;
+    use serial_test::serial;
 
-    #[test]se serial_test::serial;
+    #[test]
     #[serial]
-    fn test_get_otlp_endpoint_not_set() {    #[test]
+    fn test_get_otlp_endpoint_not_set() {
         // Returns None if environment variable is not set
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");p_endpoint_not_set() {
-        assert!(get_otlp_endpoint().is_none());ns None if environment variable is not set
-    }v::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
-_otlp_endpoint().is_none());
-    #[test] }
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        assert!(get_otlp_endpoint().is_none());
+    }
+
+    #[test]
     #[serial]
     fn test_get_otlp_endpoint_empty() {
         // Returns None if environment variable is empty
         std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "");
-        assert!(get_otlp_endpoint().is_none());y
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");"");
-    }sert!(get_otlp_endpoint().is_none());
-OTLP_ENDPOINT");
+        assert!(get_otlp_endpoint().is_none());
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+    }
+
     #[test]
     #[serial]
-    fn test_get_otlp_endpoint_from_env() {    #[test]
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
     fn test_get_otlp_endpoint_from_env() {
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, Some("http://custom:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");= get_otlp_endpoint();
-    }tom:4317".to_string()));
-NT");
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+    }
+
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_adds_http_prefix() {
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");[serial]
-   fn test_get_otlp_endpoint_adds_http_prefix() {
-        let endpoint = get_otlp_endpoint();        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
+        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
+        let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, Some("http://collector:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");= get_otlp_endpoint();
-    }!(endpoint, Some("http://collector:4317".to_string()));
-}v::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+    }
+}

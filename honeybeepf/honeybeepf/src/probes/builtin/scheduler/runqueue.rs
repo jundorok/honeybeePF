@@ -58,7 +58,7 @@ impl Probe for RunqueueLatencyProbe {
         wakeup.load()?;
         wakeup.attach("sched", "sched_wakeup")?;
         info!("Attached tracepoint: sched/sched_wakeup");
-        
+
         // Attach to sched_switch
         let switch: &mut TracePoint = bpf
             .program_mut("sched_switch")
@@ -67,12 +67,15 @@ impl Probe for RunqueueLatencyProbe {
         switch.load()?;
         switch.attach("sched", "sched_switch")?;
         info!("Attached tracepoint: sched/sched_switch");
-        
+
         self.spawn_event_handler(bpf)?;
-        
+
         telemetry::record_active_probe("runqueue", 1);
-        info!("RunqueueLatencyProbe attached (threshold={}ms)", self.threshold_ns / 1_000_000);
-        
+        info!(
+            "RunqueueLatencyProbe attached (threshold={}ms)",
+            self.threshold_ns / 1_000_000
+        );
+
         Ok(())
     }
 }
@@ -85,21 +88,21 @@ impl RunqueueLatencyProbe {
         )?;
 
         let running = self.running.clone();
-        
+
         std::thread::spawn(move || {
             let mut ring_buf = ring_buf;
-            
+
             while running.load(Ordering::Relaxed) {
                 if let Some(item) = ring_buf.next() {
                     if item.len() >= std::mem::size_of::<RunqueueEvent>() {
                         let event: RunqueueEvent = unsafe {
                             std::ptr::read_unaligned(item.as_ptr() as *const RunqueueEvent)
                         };
-                        
+
                         let comm = std::str::from_utf8(&event.comm)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         info!(
                             "RUNQUEUE_LATENCY pid={} comm={} cpu={} latency={}ms cgroup={}",
                             event.pid,
@@ -108,7 +111,7 @@ impl RunqueueLatencyProbe {
                             event.latency_ns / 1_000_000,
                             event.cgroup_id,
                         );
-                        
+
                         telemetry::record_runqueue_latency(
                             event.latency_ns,
                             event.cpu,
@@ -120,7 +123,7 @@ impl RunqueueLatencyProbe {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         });
-        
+
         Ok(())
     }
 }

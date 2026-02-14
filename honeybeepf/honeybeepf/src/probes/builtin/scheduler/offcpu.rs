@@ -86,16 +86,19 @@ impl Probe for OffCpuProbe {
             .program_mut("sched_switch_offcpu")
             .context("Failed to find sched_switch_offcpu program")?
             .try_into()?;
-        
+
         program.load()?;
         program.attach("sched", "sched_switch")?;
         info!("Attached tracepoint: sched/sched_switch (off-CPU tracking)");
-        
+
         self.spawn_event_handler(bpf)?;
-        
+
         telemetry::record_active_probe("offcpu", 1);
-        info!("OffCpuProbe attached (threshold={}ms)", self.threshold_ns / 1_000_000);
-        
+        info!(
+            "OffCpuProbe attached (threshold={}ms)",
+            self.threshold_ns / 1_000_000
+        );
+
         Ok(())
     }
 }
@@ -108,27 +111,27 @@ impl OffCpuProbe {
         )?;
 
         let running = self.running.clone();
-        
+
         std::thread::spawn(move || {
             let mut ring_buf = ring_buf;
-            
+
             while running.load(Ordering::Relaxed) {
                 if let Some(item) = ring_buf.next() {
                     if item.len() >= std::mem::size_of::<OffCpuEvent>() {
                         let event: OffCpuEvent = unsafe {
                             std::ptr::read_unaligned(item.as_ptr() as *const OffCpuEvent)
                         };
-                        
+
                         let comm = std::str::from_utf8(&event.comm)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let waker_comm = std::str::from_utf8(&event.waker_comm)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let reason = reason_name(event.reason.into());
-                        
+
                         info!(
                             "OFFCPU pid={} comm={} reason={} duration={}ms waker={}/{} cgroup={}",
                             event.pid,
@@ -139,7 +142,7 @@ impl OffCpuProbe {
                             waker_comm,
                             event.cgroup_id,
                         );
-                        
+
                         telemetry::record_offcpu_event(
                             event.duration_ns,
                             reason,
@@ -151,7 +154,7 @@ impl OffCpuProbe {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         });
-        
+
         Ok(())
     }
 }

@@ -79,16 +79,19 @@ impl Probe for VfsLatencyProbe {
         // Attach to vfs_read
         attach_kprobe_pair(bpf, "vfs_read_entry", "vfs_read_exit", "vfs_read")?;
         info!("Attached kprobe pair: vfs_read");
-        
+
         // Attach to vfs_write
         attach_kprobe_pair(bpf, "vfs_write_entry", "vfs_write_exit", "vfs_write")?;
         info!("Attached kprobe pair: vfs_write");
-        
+
         self.spawn_event_handler(bpf)?;
-        
+
         telemetry::record_active_probe("vfs_latency", 1);
-        info!("VfsLatencyProbe attached (threshold={}ms)", self.threshold_ns / 1_000_000);
-        
+        info!(
+            "VfsLatencyProbe attached (threshold={}ms)",
+            self.threshold_ns / 1_000_000
+        );
+
         Ok(())
     }
 }
@@ -101,32 +104,32 @@ impl VfsLatencyProbe {
         )?;
 
         let running = self.running.clone();
-        
+
         std::thread::spawn(move || {
             let mut ring_buf = ring_buf;
-            
+
             while running.load(Ordering::Relaxed) {
                 if let Some(item) = ring_buf.next() {
                     if item.len() >= std::mem::size_of::<VfsLatencyEvent>() {
                         let event: VfsLatencyEvent = unsafe {
                             std::ptr::read_unaligned(item.as_ptr() as *const VfsLatencyEvent)
                         };
-                        
+
                         let comm = std::str::from_utf8(&event.comm)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let filename = std::str::from_utf8(&event.filename)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let op = match VfsOpType::from(event.op_type) {
                             VfsOpType::Read => "READ",
                             VfsOpType::Write => "WRITE",
                             VfsOpType::Open => "OPEN",
                             VfsOpType::Fsync => "FSYNC",
                         };
-                        
+
                         info!(
                             "VFS_{} pid={} comm={} file={} bytes={} latency={} cgroup={}",
                             op,
@@ -137,7 +140,7 @@ impl VfsLatencyProbe {
                             format_duration(event.latency_ns),
                             event.cgroup_id,
                         );
-                        
+
                         telemetry::record_vfs_event(
                             op.to_lowercase().as_str(),
                             filename,
@@ -150,7 +153,7 @@ impl VfsLatencyProbe {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         });
-        
+
         Ok(())
     }
 }
@@ -167,14 +170,14 @@ fn attach_kprobe_pair(
         .try_into()?;
     entry.load()?;
     entry.attach(target_fn, 0)?;
-    
+
     let exit: &mut KProbe = bpf
         .program_mut(exit_name)
         .context(format!("Failed to find {} program", exit_name))?
         .try_into()?;
     exit.load()?;
     exit.attach(target_fn, 0)?;
-    
+
     Ok(())
 }
 

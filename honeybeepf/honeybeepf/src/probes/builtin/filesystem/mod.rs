@@ -10,8 +10,8 @@
 //! - Know exactly which file and process caused slow I/O
 //! - Security auditing without auditd overhead
 
-pub mod vfs_latency;
 pub mod file_access;
+pub mod vfs_latency;
 
-pub use vfs_latency::VfsLatencyProbe;
 pub use file_access::FileAccessProbe;
+pub use vfs_latency::VfsLatencyProbe;

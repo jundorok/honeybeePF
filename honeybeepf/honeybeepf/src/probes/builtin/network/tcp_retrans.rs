@@ -56,19 +56,19 @@ impl Probe for TcpRetransProbe {
             .context("Failed to find tcp_retransmit_skb program")?
             .try_into()
             .context("Program is not a TracePoint")?;
-        
+
         program.load()?;
         program
             .attach("tcp", "tcp_retransmit_skb")
             .context("Failed to attach tcp_retransmit_skb tracepoint")?;
-        
+
         info!("Attached tracepoint: tcp/tcp_retransmit_skb");
-        
+
         self.spawn_event_handler(bpf)?;
-        
+
         telemetry::record_active_probe("tcp_retrans", 1);
         info!("TcpRetransProbe attached successfully");
-        
+
         Ok(())
     }
 }
@@ -81,24 +81,24 @@ impl TcpRetransProbe {
         )?;
 
         let running = self.running.clone();
-        
+
         std::thread::spawn(move || {
             let mut ring_buf = ring_buf;
-            
+
             while running.load(Ordering::Relaxed) {
                 if let Some(item) = ring_buf.next() {
                     if item.len() >= std::mem::size_of::<TcpRetransEvent>() {
                         let event: TcpRetransEvent = unsafe {
                             std::ptr::read_unaligned(item.as_ptr() as *const TcpRetransEvent)
                         };
-                        
+
                         let comm = std::str::from_utf8(&event.comm)
                             .unwrap_or("<invalid>")
                             .trim_matches(char::from(0));
-                        
+
                         let daddr = super::tcp_connect::format_ipv4(event.daddr);
                         let state_name = tcp_state_name(event.state);
-                        
+
                         info!(
                             "TCP_RETRANS pid={} comm={} -> {}:{} state={} count={} cgroup={}",
                             event.pid,
@@ -109,7 +109,7 @@ impl TcpRetransProbe {
                             event.retrans_count,
                             event.cgroup_id,
                         );
-                        
+
                         telemetry::record_tcp_retrans_event(
                             &daddr,
                             event.dport,
@@ -121,7 +121,7 @@ impl TcpRetransProbe {
                 std::thread::sleep(std::time::Duration::from_millis(10));
             }
         });
-        
+
         Ok(())
     }
 }
