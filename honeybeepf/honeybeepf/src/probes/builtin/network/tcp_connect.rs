@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;
 use aya::programs::KProbe;
-use log::{debug, info, warn};
+use log::info;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 

@@ -93,7 +93,7 @@ impl Probe for OffCpuProbe {
 impl OffCpuProbe {
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
-            bpf.map_mut("OFFCPU_EVENTS")
+            bpf.take_map("OFFCPU_EVENTS")
                 .context("Failed to find OFFCPU_EVENTS map")?,
         )?;
 

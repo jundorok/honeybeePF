@@ -70,7 +70,7 @@ impl Probe for RunqueueLatencyProbe {
 impl RunqueueLatencyProbe {
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
-            bpf.map_mut("RUNQUEUE_EVENTS")
+            bpf.take_map("RUNQUEUE_EVENTS")
                 .context("Failed to find RUNQUEUE_EVENTS map")?,
         )?;
 

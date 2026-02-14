@@ -89,21 +89,11 @@ impl Settings {
             .unwrap_or(DEFAULT_PROBE_INTERVAL_SECONDS);
 
         honeybeepf_common::CommonConfig {
-            // Network
-            probe_tcp_connect: probe_tcp_connect as u8,
-            probe_tcp_retrans: probe_tcp_retrans as u8,
-            probe_dns: probe_dns as u8,
-            // Filesystem
-            probe_vfs_latency: probe_vfs_latency as u8,
-            probe_file_access: probe_file_access as u8,
-            // Scheduler
-            probe_runqueue: probe_runqueue as u8,
-            probe_offcpu: probe_offcpu as u8,
             // LLM
             probe_llm: probe_llm as u8,
             // Interval
             probe_interval,
-            _pad: [0; 0],
+            _pad: [0; 7],
         }
     }
 }
