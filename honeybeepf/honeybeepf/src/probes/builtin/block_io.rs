@@ -3,7 +3,9 @@ use aya::Ebpf;
 use honeybeepf_common::{BlockIoEvent, BlockIoEventType};
 use log::info;
 
-use crate::probes::{IdentityResolver, Probe, TracepointConfig, attach_tracepoint, spawn_ringbuf_handler};
+use crate::probes::{
+    IdentityResolver, Probe, TracepointConfig, attach_tracepoint, spawn_ringbuf_handler,
+};
 use crate::telemetry;
 
 pub struct BlockIoProbe;

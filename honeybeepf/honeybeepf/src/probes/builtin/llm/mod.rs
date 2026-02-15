@@ -163,13 +163,24 @@ impl Probe for LlmProbe {
             }
 
             // Resolve pod identity (result is used for future telemetry enrichment)
-            let _pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
+            #[cfg(feature = "k8s")]
+            let pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
 
             let key = (event.metadata.pid, event.metadata._pad);
             let mut map = handler_state.lock().unwrap_or_else(|e| e.into_inner());
             let processor = map.entry(key).or_default();
 
             let data_len = std::cmp::min(event.len as usize, honeybeepf_common::MAX_SSL_BUF_SIZE);
+
+            #[cfg(feature = "k8s")]
+            processor.handle_event(
+                direction,
+                &event.buf[..data_len],
+                event.metadata.pid,
+                pod_info,
+            );
+
+            #[cfg(not(feature = "k8s"))]
             processor.handle_event(direction, &event.buf[..data_len], event.metadata.pid);
         })?;
 

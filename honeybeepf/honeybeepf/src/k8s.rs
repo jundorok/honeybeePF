@@ -52,6 +52,12 @@ pub struct PodResolver {
     active: AtomicBool,
 }
 
+impl Default for PodResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PodResolver {
     pub fn new() -> Self {
         Self {
@@ -68,15 +74,13 @@ impl PodResolver {
     /// then looks it up in the pod store.
     pub fn resolve(&self, pid: u32, cgroup_id: u64) -> Option<Arc<PodInfo>> {
         // Fast path: check cgroup_cache
-        if let Ok(cache) = self.cgroup_cache.read() {
-            if let Some(cached) = cache.get(&cgroup_id) {
-                return match cached {
-                    Some(container_id) => {
-                        self.pod_store.read().ok()?.get(container_id).cloned()
-                    }
-                    None => None, // Known non-container PID
-                };
-            }
+        if let Ok(cache) = self.cgroup_cache.read()
+            && let Some(cached) = cache.get(&cgroup_id)
+        {
+            return match cached {
+                Some(container_id) => self.pod_store.read().ok()?.get(container_id).cloned(),
+                None => None, // Known non-container PID
+            };
         }
 
         // Slow path: parse /proc/{pid}/cgroup
@@ -240,16 +244,17 @@ fn extract_container_ids_from_pod(pod: &Pod) -> Vec<String> {
     let mut ids = Vec::new();
 
     if let Some(status) = &pod.status {
-        for statuses in [&status.container_statuses, &status.init_container_statuses] {
-            if let Some(containers) = statuses {
-                for cs in containers {
-                    if let Some(cid) = &cs.container_id {
-                        // Format: "containerd://<64hex>" or "docker://<64hex>"
-                        if let Some(hex_id) = cid.rsplit("://").next() {
-                            if hex_id.len() >= 12 {
-                                ids.push(hex_id[..12].to_string());
-                            }
-                        }
+        for containers in [&status.container_statuses, &status.init_container_statuses]
+            .into_iter()
+            .flatten()
+        {
+            for cs in containers {
+                if let Some(cid) = &cs.container_id {
+                    // Format: "containerd://<64hex>" or "docker://<64hex>"
+                    if let Some(hex_id) = cid.rsplit("://").next()
+                        && hex_id.len() >= 12
+                    {
+                        ids.push(hex_id[..12].to_string());
                     }
                 }
             }
@@ -296,10 +301,10 @@ fn parse_container_id_from_cgroup_line(line: &str) -> Option<String> {
     if last_segment.ends_with(".scope") {
         let inner = last_segment.trim_end_matches(".scope");
         // Extract the hex ID after the last '-'
-        if let Some(hex_id) = inner.rsplit('-').next() {
-            if is_container_id(hex_id) {
-                return Some(hex_id[..12].to_string());
-            }
+        if let Some(hex_id) = inner.rsplit('-').next()
+            && is_container_id(hex_id)
+        {
+            return Some(hex_id[..12].to_string());
         }
     }
 

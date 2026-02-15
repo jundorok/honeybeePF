@@ -3,7 +3,9 @@ use aya::Ebpf;
 use honeybeepf_common::{GpuCloseEvent, GpuOpenEvent};
 use log::info;
 
-use crate::probes::{IdentityResolver, Probe, TracepointConfig, attach_tracepoint, spawn_ringbuf_handler};
+use crate::probes::{
+    IdentityResolver, Probe, TracepointConfig, attach_tracepoint, spawn_ringbuf_handler,
+};
 use crate::telemetry;
 
 fn get_gpu_type(filename: &str) -> &'static str {
