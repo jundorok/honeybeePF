@@ -11,6 +11,9 @@ use anyhow::{Context, Result};
 use aya::{Ebpf, maps::RingBuf, programs::TracePoint};
 use log::{info, warn};
 
+#[cfg(feature = "k8s")]
+use crate::k8s::{PodInfo, PodResolver};
+
 static SHUTDOWN: once_cell::sync::Lazy<Arc<AtomicBool>> =
     once_cell::sync::Lazy::new(|| Arc::new(AtomicBool::new(false)));
 
@@ -25,8 +28,50 @@ pub fn request_shutdown() {
 pub mod builtin;
 pub mod custom;
 
+/// Process identity resolver. Wraps optional K8s PodResolver.
+///
+/// When the `k8s` feature is enabled and a resolver is provided,
+/// resolves PIDs to Kubernetes pod metadata. Otherwise, returns None.
+#[derive(Clone)]
+pub struct IdentityResolver {
+    #[cfg(feature = "k8s")]
+    inner: Option<Arc<PodResolver>>,
+}
+
+impl IdentityResolver {
+    /// Create a resolver with no K8s integration.
+    pub fn none() -> Self {
+        Self {
+            #[cfg(feature = "k8s")]
+            inner: None,
+        }
+    }
+
+    /// Create a resolver backed by a K8s PodResolver.
+    #[cfg(feature = "k8s")]
+    pub fn with_pod_resolver(resolver: Arc<PodResolver>) -> Self {
+        Self {
+            inner: Some(resolver),
+        }
+    }
+
+    /// Resolve a PID + cgroup_id to pod metadata.
+    ///
+    /// Returns None if K8s feature is disabled, no resolver is configured,
+    /// or the PID doesn't belong to a known pod.
+    #[cfg(feature = "k8s")]
+    pub fn resolve_pod(&self, pid: u32, cgroup_id: u64) -> Option<Arc<PodInfo>> {
+        self.inner.as_ref()?.resolve(pid, cgroup_id)
+    }
+
+    #[cfg(not(feature = "k8s"))]
+    pub fn resolve_pod(&self, _pid: u32, _cgroup_id: u64) -> Option<()> {
+        None
+    }
+}
+
 pub trait Probe {
-    fn attach(&self, bpf: &mut Ebpf) -> Result<()>;
+    fn attach(&self, bpf: &mut Ebpf, resolver: IdentityResolver) -> Result<()>;
 }
 
 pub struct TracepointConfig<'a> {
