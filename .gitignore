@@ -56,3 +56,4 @@ charts/**/Chart.lock
 
 # Rust build artifacts
 honeybeepf/target/
+honeybeepf-extracted

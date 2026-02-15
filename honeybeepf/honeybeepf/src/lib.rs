@@ -35,9 +35,18 @@ impl HoneyBeeEngine {
     pub fn new(settings: Settings, bytecode: &[u8]) -> Result<Self> {
         bump_memlock_rlimit()?;
         let mut bpf = Ebpf::load(bytecode)?;
-        if let Err(e) = EbpfLogger::init(&mut bpf) {
-            warn!("Failed to initialize eBPF logger: {}", e);
+
+        // Initialize the eBPF Logger only in debug mode
+        if settings.debug.unwrap_or(false) {
+            if let Err(e) = EbpfLogger::init(&mut bpf) {
+                warn!("Failed to initialize eBPF logger: {}", e);
+            } else {
+                info!("eBPF logger enabled (debug mode)");
+            }
+        } else {
+            info!("eBPF logger disabled (production mode)");
         }
+
         Ok(Self { settings, bpf })
     }
 
