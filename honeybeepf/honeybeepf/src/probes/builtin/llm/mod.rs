@@ -129,7 +129,7 @@ pub struct LlmProbe;
 type StreamMap = Arc<Mutex<HashMap<(u32, u32), StreamProcessor>>>;
 
 impl Probe for LlmProbe {
-    fn attach(&self, bpf: &mut Ebpf, resolver: IdentityResolver) -> Result<()> {
+    fn attach(&self, bpf: &mut Ebpf, _resolver: IdentityResolver) -> Result<()> {
         let targets = discovery::find_all_targets()?;
 
         if targets.is_empty() {
@@ -164,7 +164,7 @@ impl Probe for LlmProbe {
 
             // Resolve pod identity (result is used for future telemetry enrichment)
             #[cfg(feature = "k8s")]
-            let pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
+            let pod_info = _resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
 
             let key = (event.metadata.pid, event.metadata._pad);
             let mut map = handler_state.lock().unwrap_or_else(|e| e.into_inner());

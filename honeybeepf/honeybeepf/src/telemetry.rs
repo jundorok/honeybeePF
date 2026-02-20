@@ -181,19 +181,23 @@ fn process_attrs(
     process_name: &str,
     #[cfg(feature = "k8s")] pod: Option<&PodInfo>,
 ) -> Vec<KeyValue> {
-    let mut attrs = vec![KeyValue::new("process.name", process_name.to_string())];
+    let attrs = vec![KeyValue::new("process.name", process_name.to_string())];
 
     #[cfg(feature = "k8s")]
-    if let Some(info) = pod {
-        attrs.push(KeyValue::new("k8s.pod.name", info.pod_name.clone()));
-        attrs.push(KeyValue::new("k8s.namespace.name", info.namespace.clone()));
-        if let Some(ref name) = info.workload_name {
-            attrs.push(KeyValue::new("k8s.workload.name", name.clone()));
+    let attrs = {
+        let mut attrs = attrs;
+        if let Some(info) = pod {
+            attrs.push(KeyValue::new("k8s.pod.name", info.pod_name.clone()));
+            attrs.push(KeyValue::new("k8s.namespace.name", info.namespace.clone()));
+            if let Some(ref name) = info.workload_name {
+                attrs.push(KeyValue::new("k8s.workload.name", name.clone()));
+            }
+            if let Some(ref kind) = info.workload_kind {
+                attrs.push(KeyValue::new("k8s.workload.kind", kind.clone()));
+            }
         }
-        if let Some(ref kind) = info.workload_kind {
-            attrs.push(KeyValue::new("k8s.workload.kind", kind.clone()));
-        }
-    }
+        attrs
+    };
 
     attrs
 }

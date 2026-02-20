@@ -48,7 +48,7 @@ impl Probe for BlockIoProbe {
             // Create device name (major:minor)
             let device = format!("{}:{}", event.dev >> 20, event.dev & 0xFFFFF);
 
-            let pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
+            let _pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
 
             info!(
                 "BlockIO {} pid={} dev={} sector={} nr_sector={} bytes={} rwbs={} comm={}",
@@ -69,7 +69,7 @@ impl Probe for BlockIoProbe {
                 &device,
                 comm,
                 #[cfg(feature = "k8s")]
-                pod_info.as_deref(),
+                _pod_info.as_deref(),
             );
         })?;
         Ok(())

@@ -7,10 +7,7 @@
 
 use std::{
     collections::HashMap,
-    sync::{
-        Arc, RwLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, RwLock, atomic::Ordering},
     time::Duration,
 };
 
@@ -48,8 +45,6 @@ pub struct PodResolver {
     /// container_id (short 12-char prefix) → PodInfo.
     /// Populated and updated by the K8s watcher task.
     pod_store: RwLock<HashMap<String, Arc<PodInfo>>>,
-    /// Whether the K8s watcher is active.
-    active: AtomicBool,
 }
 
 impl Default for PodResolver {
@@ -63,7 +58,6 @@ impl PodResolver {
         Self {
             cgroup_cache: RwLock::new(HashMap::new()),
             pod_store: RwLock::new(HashMap::new()),
-            active: AtomicBool::new(false),
         }
     }
 
@@ -106,8 +100,8 @@ impl PodResolver {
             .await
             .context("Failed to create K8s client (not running in cluster?)")?;
 
-        self.active.store(true, Ordering::Relaxed);
-
+        // Pods are namespaced resources, but we want to watch across all namespaces on this node.
+        // Therefore, we use Api::all() to get cluster-wide visibility.
         let api: Api<Pod> = Api::all(client);
         let watcher_config = watcher::Config {
             field_selector: Some(format!("spec.nodeName={}", node_name)),
@@ -181,6 +175,9 @@ impl PodResolver {
                     if owner.kind == "ReplicaSet" {
                         // ReplicaSet is owned by Deployment; strip the hash suffix.
                         // "my-app-7d4b8c9f5" → "my-app"
+                        // Note: This strips one suffix segment, which works for standard Deployment-generated
+                        // RS names, but could misfire for custom names like "my-app-v2-7d4b8c9f5" -> "my-app-v2".
+                        // True resolution would require following the ownerReferences chain up to Deployment.
                         let name = owner
                             .name
                             .rsplit_once('-')

@@ -65,7 +65,7 @@ impl Probe for GpuUsageProbe {
                 .trim_matches(char::from(0));
             let gpu_type = get_gpu_type(filename);
 
-            let pod_info = open_resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
+            let _pod_info = open_resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
 
             info!(
                 "GPU_OPEN pid={} comm={} gpu_index={} fd={} type={} file={} cgroup_id={}",
@@ -82,7 +82,7 @@ impl Probe for GpuUsageProbe {
                 filename,
                 comm,
                 #[cfg(feature = "k8s")]
-                pod_info.as_deref(),
+                _pod_info.as_deref(),
             );
         })?;
 

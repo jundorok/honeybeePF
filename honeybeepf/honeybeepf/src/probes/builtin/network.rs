@@ -27,9 +27,9 @@ impl Probe for NetworkLatencyProbe {
             let dest_ip = Ipv4Addr::from(u32::from_be(event.dest_addr));
             let dest_port = u16::from_be(event.dest_port);
 
-            let pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
+            let _pod_info = resolver.resolve_pod(event.metadata.pid, event.metadata.cgroup_id);
             #[cfg(feature = "k8s")]
-            let pod_str = pod_info
+            let pod_str = _pod_info
                 .as_ref()
                 .map(|p| format!(" | Pod: {}/{}", p.namespace, p.pod_name))
                 .unwrap_or_default();
@@ -57,7 +57,7 @@ impl Probe for NetworkLatencyProbe {
                 &format!("{}:{}", dest_ip, dest_port),
                 comm,
                 #[cfg(feature = "k8s")]
-                pod_info.as_deref(),
+                _pod_info.as_deref(),
             );
         })?;
 

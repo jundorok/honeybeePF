@@ -31,6 +31,14 @@ enum ProcessorState {
     Finished,
 }
 
+#[cfg(feature = "k8s")]
+fn fmt_pod(pod_info: &Option<std::sync::Arc<crate::k8s::PodInfo>>) -> String {
+    pod_info
+        .as_ref()
+        .map(|p| format!(" | Pod: {}/{}", p.namespace, p.pod_name))
+        .unwrap_or_default()
+}
+
 pub struct StreamProcessor {
     state: ProcessorState,
     write_buf: Vec<u8>,
@@ -65,7 +73,6 @@ impl StreamProcessor {
         )
     }
 
-    #[allow(unused_variables)]
     pub fn handle_event(
         &mut self,
         direction: LlmDirection,
@@ -128,10 +135,7 @@ impl StreamProcessor {
                 // Try H1
                 if let Some(path) = http::Http11Parser.detect_request(&self.write_buf) {
                     #[cfg(feature = "k8s")]
-                    let pod_str = pod_info
-                        .as_ref()
-                        .map(|p| format!(" | Pod: {}/{}", p.namespace, p.pod_name))
-                        .unwrap_or_default();
+                    let pod_str = fmt_pod(&pod_info);
                     #[cfg(not(feature = "k8s"))]
                     let pod_str = "";
 
@@ -147,10 +151,7 @@ impl StreamProcessor {
                 // Try H2
                 else if let Some(path) = http::Http2Parser.detect_request(&self.write_buf) {
                     #[cfg(feature = "k8s")]
-                    let pod_str = pod_info
-                        .as_ref()
-                        .map(|p| format!(" | Pod: {}/{}", p.namespace, p.pod_name))
-                        .unwrap_or_default();
+                    let pod_str = fmt_pod(&pod_info);
                     #[cfg(not(feature = "k8s"))]
                     let pod_str = "";
 
@@ -189,10 +190,7 @@ impl StreamProcessor {
                     let model_str = usage.model.as_deref().unwrap_or("unknown");
 
                     #[cfg(feature = "k8s")]
-                    let pod_str = pod_info
-                        .as_ref()
-                        .map(|p| format!(" | Pod: {}/{}", p.namespace, p.pod_name))
-                        .unwrap_or_default();
+                    let pod_str = fmt_pod(&pod_info);
                     #[cfg(not(feature = "k8s"))]
                     let pod_str = "";
 
