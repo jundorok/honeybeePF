@@ -60,11 +60,7 @@ impl Settings {
         dotenvy::dotenv().ok();
 
         let s = Config::builder()
-            .add_source(
-                Environment::default()
-                    .separator("__")
-                    .list_separator(","),
-            )
+            .add_source(Environment::default().separator("__").list_separator(","))
             .build()?;
 
         s.try_deserialize()

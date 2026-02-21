@@ -29,7 +29,8 @@ data:
   {{- end }}
   BUILTIN_PROBES__FILESYSTEM__FILE_ACCESS: {{ .Values.builtinProbes.filesystem.file_access.enabled | quote }}
   {{- if .Values.builtinProbes.filesystem.file_access.watched_paths }}
-  BUILTIN_PROBES__FILESYSTEM__WATCHED_PATHS: {{ .Values.builtinProbes.filesystem.file_access.watched_paths | toJson | quote }}
+  {{- /* config-rs parses comma-separated values into Vec<String> */ -}}
+  BUILTIN_PROBES__FILESYSTEM__WATCHED_PATHS: {{ .Values.builtinProbes.filesystem.file_access.watched_paths | join "," | quote }}
   {{- end }}
 
   # === Scheduler Probes ===
