@@ -101,19 +101,30 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
+        info!("=== ATTACH_PROBES START ===");
         info!(
             "Probe settings - file_access: {:?}, watched_paths: {:?}",
             self.settings.builtin_probes.filesystem.file_access,
             self.settings.builtin_probes.filesystem.watched_paths
         );
+        info!(
+            "Full builtin_probes settings: filesystem={:?}, network={:?}, scheduler={:?}, llm={:?}",
+            self.settings.builtin_probes.filesystem,
+            self.settings.builtin_probes.network,
+            self.settings.builtin_probes.scheduler,
+            self.settings.builtin_probes.llm
+        );
 
-        if self
+        let file_access_enabled = self
             .settings
             .builtin_probes
             .filesystem
             .file_access
-            .unwrap_or(false)
-        {
+            .unwrap_or(false);
+        info!("file_access_enabled = {}", file_access_enabled);
+
+        if file_access_enabled {
+            info!("FileAccessProbe is ENABLED, attaching...");
             let mut probe = FileAccessProbe::default();
             if let Some(watched_paths) = self
                 .settings

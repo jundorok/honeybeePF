@@ -59,11 +59,25 @@ impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         dotenvy::dotenv().ok();
 
+        // Debug: print relevant environment variables
+        for (key, value) in std::env::vars() {
+            if key.starts_with("BUILTIN") || key.starts_with("RUST_LOG") {
+                eprintln!("ENV: {}={}", key, value);
+            }
+        }
+
         let s = Config::builder()
-            .add_source(Environment::default().separator("__").list_separator(","))
+            .add_source(
+                Environment::default()
+                    .separator("__")
+                    .list_separator(",")
+                    .try_parsing(true)  // Enable parsing of booleans and numbers from strings
+            )
             .build()?;
 
-        s.try_deserialize()
+        let settings: Self = s.try_deserialize()?;
+        eprintln!("Parsed settings: {:?}", settings);
+        Ok(settings)
     }
 
     pub fn to_common_config(&self) -> honeybeepf_common::CommonConfig {
