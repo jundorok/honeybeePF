@@ -99,3 +99,44 @@ pub struct ExecEvent {
 
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for ExecEvent {}
+
+// ============================================================
+// File Access Events
+// ============================================================
+
+pub const MAX_FILENAME_LEN: usize = 256;
+pub const MAX_COMM_LEN: usize = 16;
+
+/// File access event emitted on sys_enter_openat tracepoint
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct FileAccessEvent {
+    pub metadata: EventMetadata,
+    pub tid: u32,
+    pub flags: u32,
+    pub mode: u32,
+    pub ino: u64,
+    pub dev: u32,
+    pub _pad2: u32,
+    pub comm: [u8; MAX_COMM_LEN],
+    pub filename: [u8; MAX_FILENAME_LEN],
+}
+
+impl Default for FileAccessEvent {
+    fn default() -> Self {
+        Self {
+            metadata: EventMetadata::default(),
+            tid: 0,
+            flags: 0,
+            mode: 0,
+            ino: 0,
+            dev: 0,
+            _pad2: 0,
+            comm: [0u8; MAX_COMM_LEN],
+            filename: [0u8; MAX_FILENAME_LEN],
+        }
+    }
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for FileAccessEvent {}

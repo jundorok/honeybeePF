@@ -2,27 +2,13 @@ use anyhow::{Context, Result};
 use aya::Ebpf;
 use aya::maps::RingBuf;
 use aya::programs::TracePoint;
+use honeybeepf_common::FileAccessEvent;
 use log::info;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::probes::Probe;
 use crate::telemetry;
-
-/// File access event
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct FileAccessEvent {
-    pub pid: u32,
-    pub tid: u32,
-    pub flags: u32,
-    pub mode: u32,
-    pub ino: u64,
-    pub dev: u32,
-    pub cgroup_id: u64,
-    pub comm: [u8; 16],
-    pub filename: [u8; 256],
-}
 
 pub struct FileAccessProbe {
     pub watched_paths: Vec<String>,
@@ -99,14 +85,14 @@ impl FileAccessProbe {
 
                         info!(
                             "FILE_ACCESS pid={} comm={} file={} flags={} cgroup={}",
-                            event.pid, comm, filename, flags_str, event.cgroup_id,
+                            event.metadata.pid, comm, filename, flags_str, event.metadata.cgroup_id,
                         );
 
                         telemetry::record_file_access_event(
                             filename,
                             &flags_str,
                             comm,
-                            event.cgroup_id,
+                            event.metadata.cgroup_id,
                         );
                     }
                 }
