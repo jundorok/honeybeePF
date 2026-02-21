@@ -47,9 +47,8 @@ impl HoneyBeeEvent<TracePointContext> for FileAccessEvent {
         // Read filename from userspace
         if filename_ptr != 0 {
             let filename_slice = &mut self.filename[..MAX_FILENAME_LEN];
-            let _ = unsafe {
-                bpf_probe_read_user_str_bytes(filename_ptr as *const u8, filename_slice)
-            };
+            let _ =
+                unsafe { bpf_probe_read_user_str_bytes(filename_ptr as *const u8, filename_slice) };
         }
 
         Ok(())
