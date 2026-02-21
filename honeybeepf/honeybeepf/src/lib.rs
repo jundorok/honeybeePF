@@ -101,6 +101,12 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
+        info!(
+            "Probe settings - file_access: {:?}, watched_paths: {:?}",
+            self.settings.builtin_probes.filesystem.file_access,
+            self.settings.builtin_probes.filesystem.watched_paths
+        );
+
         if self
             .settings
             .builtin_probes
