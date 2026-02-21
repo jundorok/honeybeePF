@@ -18,6 +18,10 @@ use crate::probes::{
         ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
         setup_exec_watch,
     },
+    builtin::{
+        DnsProbe, FileAccessProbe, OffCpuProbe, RunqueueLatencyProbe, TcpConnectProbe,
+        TcpRetransProbe, VfsLatencyProbe,
+    },
     request_shutdown, shutdown_flag,
 };
 
@@ -100,7 +104,67 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
-        if self.settings.builtin_probes.llm.unwrap_or(false) {
+        let builtin = &self.settings.builtin_probes;
+
+        if builtin.network.tcp_connect.unwrap_or(false)
+            && let Err(e) = TcpConnectProbe::default().attach(&mut self.bpf)
+        {
+            warn!("Failed to attach tcp_connect probe: {}", e);
+        }
+
+        if builtin.network.tcp_retrans.unwrap_or(false)
+            && let Err(e) = TcpRetransProbe::default().attach(&mut self.bpf)
+        {
+            warn!("Failed to attach tcp_retrans probe: {}", e);
+        }
+
+        if builtin.network.dns.unwrap_or(false)
+            && let Err(e) = DnsProbe::default().attach(&mut self.bpf)
+        {
+            warn!("Failed to attach dns probe: {}", e);
+        }
+
+        if builtin.filesystem.vfs_latency.unwrap_or(false) {
+            let mut probe = VfsLatencyProbe::default();
+            if let Some(threshold_ms) = builtin.filesystem.vfs_latency_threshold_ms {
+                probe.threshold_ns = u64::from(threshold_ms) * 1_000_000;
+            }
+            if let Err(e) = probe.attach(&mut self.bpf) {
+                warn!("Failed to attach vfs_latency probe: {}", e);
+            }
+        }
+
+        if builtin.filesystem.file_access.unwrap_or(false) {
+            let mut probe = FileAccessProbe::default();
+            if let Some(watched_paths) = builtin.filesystem.watched_paths.clone() {
+                probe.watched_paths = watched_paths;
+            }
+            if let Err(e) = probe.attach(&mut self.bpf) {
+                warn!("Failed to attach file_access probe: {}", e);
+            }
+        }
+
+        if builtin.scheduler.runqueue.unwrap_or(false) {
+            let mut probe = RunqueueLatencyProbe::default();
+            if let Some(threshold_ms) = builtin.scheduler.runqueue_threshold_ms {
+                probe.threshold_ns = u64::from(threshold_ms) * 1_000_000;
+            }
+            if let Err(e) = probe.attach(&mut self.bpf) {
+                warn!("Failed to attach runqueue probe: {}", e);
+            }
+        }
+
+        if builtin.scheduler.offcpu.unwrap_or(false) {
+            let mut probe = OffCpuProbe::default();
+            if let Some(threshold_ms) = builtin.scheduler.offcpu_threshold_ms {
+                probe.threshold_ns = u64::from(threshold_ms) * 1_000_000;
+            }
+            if let Err(e) = probe.attach(&mut self.bpf) {
+                warn!("Failed to attach offcpu probe: {}", e);
+            }
+        }
+
+        if builtin.llm.unwrap_or(false) {
             LlmProbe.attach(&mut self.bpf)?;
             telemetry::record_active_probe("llm", 1);
         }
