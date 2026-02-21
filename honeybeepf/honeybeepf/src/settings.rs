@@ -71,7 +71,7 @@ impl Settings {
                 Environment::default()
                     .separator("__")
                     .list_separator(",")
-                    .try_parsing(true)  // Enable parsing of booleans and numbers from strings
+                    .try_parsing(true),
             )
             .build()?;
 
