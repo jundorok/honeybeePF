@@ -23,20 +23,12 @@ serviceAccount:
 rustLog: "info"
 
 builtinProbes:
-  network:
-    tcp_connect:
-      enabled: true
-    tcp_retrans:
-      enabled: true
-    dns:
-      enabled: false
-
   filesystem:
     vfs_latency:
-      enabled: true
+      enabled: false
       threshold_ms: 1000
     file_access:
-      enabled: true
+      enabled: false
       watched_paths:
         # SSH keys - common user paths
         - "/root/.ssh/authorized_keys"

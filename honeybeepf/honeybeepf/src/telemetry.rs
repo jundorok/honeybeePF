@@ -3,7 +3,6 @@
 //! Exports eBPF metrics collected by honeybeepf to OpenTelemetry Collector.
 //!
 //! ## Metrics Categories
-//! - **Network**: TCP connections, retransmissions, DNS queries
 //! - **Filesystem**: VFS latency, file access auditing
 //! - **Scheduler**: Runqueue latency, off-CPU analysis
 //!
@@ -40,13 +39,6 @@ fn active_probes_map() -> &'static RwLock<HashMap<String, u64>> {
 
 /// honeybeepf metrics collection
 pub struct HoneyBeeMetrics {
-    // === Network metrics ===
-    pub tcp_connect_events: Counter<u64>,
-    pub tcp_connect_latency_ns: Histogram<u64>,
-    pub tcp_retrans_events: Counter<u64>,
-    pub dns_query_events: Counter<u64>,
-    pub dns_query_latency_ns: Histogram<u64>,
-
     // === Filesystem metrics ===
     pub vfs_read_events: Counter<u64>,
     pub vfs_write_events: Counter<u64>,
@@ -62,33 +54,6 @@ pub struct HoneyBeeMetrics {
 impl HoneyBeeMetrics {
     fn new(meter: &Meter) -> Self {
         Self {
-            // === Network ===
-            tcp_connect_events: meter
-                .u64_counter("tcp_connect_events")
-                .with_description("Number of TCP connection attempts")
-                .with_unit("events")
-                .build(),
-            tcp_connect_latency_ns: meter
-                .u64_histogram("tcp_connect_latency_ns")
-                .with_description("TCP connection establishment latency")
-                .with_unit("ns")
-                .build(),
-            tcp_retrans_events: meter
-                .u64_counter("tcp_retrans_events")
-                .with_description("Number of TCP retransmission events")
-                .with_unit("events")
-                .build(),
-            dns_query_events: meter
-                .u64_counter("dns_query_events")
-                .with_description("Number of DNS queries")
-                .with_unit("events")
-                .build(),
-            dns_query_latency_ns: meter
-                .u64_histogram("dns_query_latency_ns")
-                .with_description("DNS query latency")
-                .with_unit("ns")
-                .build(),
-
             // === Filesystem ===
             vfs_read_events: meter
                 .u64_counter("vfs_read_events")
@@ -219,51 +184,6 @@ pub fn record_active_probe(probe_name: &str, count: u64) {
     if let Ok(mut probes) = active_probes_map().write() {
         probes.insert(probe_name.to_string(), count);
         info!("Active probe registered: {} = {}", probe_name, count);
-    }
-}
-
-// === Network metric helpers ===
-
-pub fn record_tcp_connect_event(
-    daddr: &str,
-    dport: u16,
-    latency_ns: u64,
-    success: bool,
-    cgroup_id: u64,
-) {
-    if let Some(m) = metrics() {
-        let attrs = [
-            KeyValue::new("dest_addr", daddr.to_string()),
-            KeyValue::new("dest_port", dport as i64),
-            KeyValue::new("success", success),
-            KeyValue::new("cgroup_id", cgroup_id as i64),
-        ];
-        m.tcp_connect_events.add(1, &attrs);
-        m.tcp_connect_latency_ns.record(latency_ns, &attrs);
-    }
-}
-
-pub fn record_tcp_retrans_event(daddr: &str, dport: u16, state: &str, cgroup_id: u64) {
-    if let Some(m) = metrics() {
-        let attrs = [
-            KeyValue::new("dest_addr", daddr.to_string()),
-            KeyValue::new("dest_port", dport as i64),
-            KeyValue::new("tcp_state", state.to_string()),
-            KeyValue::new("cgroup_id", cgroup_id as i64),
-        ];
-        m.tcp_retrans_events.add(1, &attrs);
-    }
-}
-
-pub fn record_dns_query_event(query_name: &str, query_type: &str, latency_ns: u64, cgroup_id: u64) {
-    if let Some(m) = metrics() {
-        let attrs = [
-            KeyValue::new("query_name", query_name.to_string()),
-            KeyValue::new("query_type", query_type.to_string()),
-            KeyValue::new("cgroup_id", cgroup_id as i64),
-        ];
-        m.dns_query_events.add(1, &attrs);
-        m.dns_query_latency_ns.record(latency_ns, &attrs);
     }
 }
 

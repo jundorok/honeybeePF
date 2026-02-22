@@ -17,11 +17,6 @@ data:
   OTEL_SERVICE_NAME: "honeybeepf"
   {{- end }}
 
-  # === Network Probes ===
-  BUILTIN_PROBES__NETWORK__TCP_CONNECT: {{ .Values.builtinProbes.network.tcp_connect.enabled | quote }}
-  BUILTIN_PROBES__NETWORK__TCP_RETRANS: {{ .Values.builtinProbes.network.tcp_retrans.enabled | quote }}
-  BUILTIN_PROBES__NETWORK__DNS: {{ .Values.builtinProbes.network.dns.enabled | quote }}
-
   # === Filesystem Probes ===
   BUILTIN_PROBES__FILESYSTEM__VFS_LATENCY: {{ .Values.builtinProbes.filesystem.vfs_latency.enabled | quote }}
   {{- if .Values.builtinProbes.filesystem.vfs_latency.threshold_ms }}
