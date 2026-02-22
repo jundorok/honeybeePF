@@ -3,53 +3,48 @@ fullnameOverride: ""
 
 image:
   repository: "docker.io/dorokrok/honeybeepf"
-  tag: "latest"
-  pullPolicy: IfNotPresent
+  tag: "pr-48"
+  pullPolicy: Always
 imagePullSecrets: [] 
 podAnnotations: {}
 
-# NOTE: HoneybeePF uses OTLP to send metrics to OTel Collector.
-# Prometheus scrapes the OTel Collector's prometheus exporter (port 8889), 
-# NOT the agent directly. The agent does NOT expose a /metrics endpoint.
-# ServiceMonitor is NOT used - this chart uses annotation-based scraping.
-
 output:
   otlp:
-    endpoint: ""  # honeybeepf-otel-collector-opentelemetry-collector:4317
+    endpoint: ""
     collectorReleaseName: "honeybeepf-otel-collector"
     port: 4317
     protocol: "grpc"
+
 serviceAccount:
   create: true
   annotations: {}
   name: ""
 
-# Valid values: trace, debug, info, warn, error
 rustLog: "info"
 
 builtinProbes:
-  block_io:
-    enabled: true
-  network_latency:
-    enabled: false
-  gpu_usage:
-    enabled: false
+  filesystem:
+    vfs_latency:
+      enabled: false
+      threshold_ms: 1000
+    file_access:
+      enabled: false
+      watched_paths:
+        # SSH keys - common user paths
+        - "/root/.ssh/authorized_keys"
+        - "/root/.ssh/id_rsa"
+        - "/root/.ssh/id_ed25519"
+        - "/home/ubuntu/.ssh/authorized_keys"
+        - "/home/ubuntu/.ssh/id_rsa"
+        - "/home/ubuntu/.ssh/id_ed25519"
+        - "/home/root/.ssh/authorized_keys"
+        - "/home/root/.ssh/id_rsa"
+        - "/home/root/.ssh/id_ed25519"
+
   llm:
     enabled: false
-    # Custom providers config (optional). Built-in: OpenAI, Anthropic, Gemini
-    # Add your own providers here (e.g. Ollama, vLLM, private models).
     providers: []
-    # Example:
-    # providers:
-    #   - name: "ollama"
-    #     hosts: ["localhost", "ollama.internal"]
-    #     paths: ["/api/generate", "/api/chat"]
-    #     response:
-    #       usage_path: "usage"               # JSON path to usage object
-    #       prompt_tokens: "prompt_eval_count" # Field name for input tokens
-    #       completion_tokens: "eval_count"    # Field name for output tokens
-    #       model_path: "model"
-    #     request_extractor: "messages"       # How to extract prompt text (messages, contents, prompt)
+
   interval: 1000
 
 customProbes:
@@ -70,6 +65,7 @@ securityContext:
       - SYS_RESOURCE
       - SYS_PTRACE
       - DAC_OVERRIDE
+
 resources:
   limits:
     cpu: "1000m"
@@ -78,8 +74,6 @@ resources:
     cpu: "200m"
     memory: "512Mi"
 
-nodeSelector:
-  kubernetes.io/os: linux
+tolerations: []
 
-# Debug mode
 debug: false

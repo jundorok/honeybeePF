@@ -2,10 +2,12 @@
 //!
 //! Exports eBPF metrics collected by honeybeepf to OpenTelemetry Collector.
 //!
+//! ## Metrics Categories
+//! - **Filesystem**: VFS latency, file access auditing
+//!
 //! ## OTLP Endpoint Priority
 //! 1. Helm values (injected via environment variables)
 //! 2. Direct environment variable configuration
-//! 3. Code default value (FQDN)
 
 use anyhow::{Context, Result};
 use log::info;
@@ -35,45 +37,36 @@ fn active_probes_map() -> &'static RwLock<HashMap<String, u64>> {
 }
 
 /// honeybeepf metrics collection
-///
-/// Note: Do NOT add _total suffix to Counter names (Prometheus adds it automatically)
 pub struct HoneyBeeMetrics {
-    pub block_io_events: Counter<u64>,
-    pub block_io_bytes: Counter<u64>,
-    pub block_io_latency_ns: Histogram<u64>,
-    pub network_latency_ns: Histogram<u64>,
-    pub gpu_open_events: Counter<u64>,
-    // Note: active_probes is registered as ObservableGauge in init_metrics()
+    // === Filesystem metrics ===
+    pub vfs_read_events: Counter<u64>,
+    pub vfs_write_events: Counter<u64>,
+    pub vfs_latency_ns: Histogram<u64>,
+    pub file_access_events: Counter<u64>,
 }
 
 impl HoneyBeeMetrics {
     fn new(meter: &Meter) -> Self {
-        // Note: Do NOT add _total suffix to Counter names!
-        // Prometheus automatically adds _total suffix
         Self {
-            block_io_events: meter
-                .u64_counter("block_io_events")
-                .with_description("Number of block I/O events")
+            // === Filesystem ===
+            vfs_read_events: meter
+                .u64_counter("vfs_read_events")
+                .with_description("Number of VFS read operations")
                 .with_unit("events")
                 .build(),
-            block_io_bytes: meter
-                .u64_counter("block_io_bytes")
-                .with_description("Total bytes of block I/O operations")
-                .with_unit("bytes")
+            vfs_write_events: meter
+                .u64_counter("vfs_write_events")
+                .with_description("Number of VFS write operations")
+                .with_unit("events")
                 .build(),
-            block_io_latency_ns: meter
-                .u64_histogram("block_io_latency_ns")
-                .with_description("Block I/O operation latency in nanoseconds")
+            vfs_latency_ns: meter
+                .u64_histogram("vfs_latency_ns")
+                .with_description("VFS operation latency")
                 .with_unit("ns")
                 .build(),
-            network_latency_ns: meter
-                .u64_histogram("network_latency_ns")
-                .with_description("Network operation latency in nanoseconds")
-                .with_unit("ns")
-                .build(),
-            gpu_open_events: meter
-                .u64_counter("gpu_open_events")
-                .with_description("Number of GPU device open events")
+            file_access_events: meter
+                .u64_counter("file_access_events")
+                .with_description("Number of monitored file access events")
                 .with_unit("events")
                 .build(),
         }
@@ -163,43 +156,49 @@ pub fn metrics() -> Option<&'static HoneyBeeMetrics> {
     METRICS.get()
 }
 
-pub fn record_block_io_event(event_type: &str, bytes: u64, latency_ns: Option<u64>, device: &str) {
-    if let Some(m) = metrics() {
-        let attrs = [
-            KeyValue::new("event_type", event_type.to_string()),
-            KeyValue::new("device", device.to_string()),
-        ];
-
-        m.block_io_events.add(1, &attrs);
-        m.block_io_bytes.add(bytes, &attrs);
-
-        if let Some(lat) = latency_ns {
-            m.block_io_latency_ns.record(lat, &attrs);
-        }
-    }
-}
-
-pub fn record_network_latency(latency_ns: u64, protocol: &str) {
-    if let Some(m) = metrics() {
-        let attrs = [KeyValue::new("protocol", protocol.to_string())];
-        m.network_latency_ns.record(latency_ns, &attrs);
-    }
-}
-
-pub fn record_gpu_open_event(device_path: &str) {
-    if let Some(m) = metrics() {
-        let attrs = [KeyValue::new("device", device_path.to_string())];
-        m.gpu_open_events.add(1, &attrs);
-    }
-}
-
-/// Record active probe count
-/// Updates the global active probes map for ObservableGauge callback
 pub fn record_active_probe(probe_name: &str, count: u64) {
     // Update the global map (ObservableGauge callback reads from this)
     if let Ok(mut probes) = active_probes_map().write() {
         probes.insert(probe_name.to_string(), count);
         info!("Active probe registered: {} = {}", probe_name, count);
+    }
+}
+
+// === Filesystem metric helpers ===
+
+pub fn record_vfs_event(
+    op_type: &str,
+    filename: &str,
+    _bytes: u64,
+    latency_ns: u64,
+    cgroup_id: u64,
+) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("operation", op_type.to_string()),
+            KeyValue::new("filename", filename.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+
+        match op_type {
+            "read" => m.vfs_read_events.add(1, &attrs),
+            "write" => m.vfs_write_events.add(1, &attrs),
+            _ => {}
+        }
+
+        m.vfs_latency_ns.record(latency_ns, &attrs);
+    }
+}
+
+pub fn record_file_access_event(filename: &str, flags: &str, comm: &str, cgroup_id: u64) {
+    if let Some(m) = metrics() {
+        let attrs = [
+            KeyValue::new("filename", filename.to_string()),
+            KeyValue::new("flags", flags.to_string()),
+            KeyValue::new("process", comm.to_string()),
+            KeyValue::new("cgroup_id", cgroup_id as i64),
+        ];
+        m.file_access_events.add(1, &attrs);
     }
 }
 
@@ -225,7 +224,7 @@ mod tests {
     #[serial]
     fn test_get_otlp_endpoint_not_set() {
         // Returns None if environment variable is not set
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT") };
         assert!(get_otlp_endpoint().is_none());
     }
 
@@ -233,28 +232,26 @@ mod tests {
     #[serial]
     fn test_get_otlp_endpoint_empty() {
         // Returns None if environment variable is empty
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "");
+        unsafe { std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "") };
         assert!(get_otlp_endpoint().is_none());
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT") };
     }
 
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_from_env() {
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317");
-
+        unsafe { std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "http://custom:4317") };
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, Some("http://custom:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT") };
     }
 
     #[test]
     #[serial]
     fn test_get_otlp_endpoint_adds_http_prefix() {
-        std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317");
-
+        unsafe { std::env::set_var("OTEL_EXPORTER_OTLP_ENDPOINT", "collector:4317") };
         let endpoint = get_otlp_endpoint();
         assert_eq!(endpoint, Some("http://collector:4317".to_string()));
-        std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        unsafe { std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT") };
     }
 }

@@ -14,14 +14,11 @@ use crate::settings::Settings;
 pub mod probes;
 use crate::probes::{
     Probe,
-    builtin::{
-        block_io::BlockIoProbe,
-        gpu_usage::GpuUsageProbe,
-        llm::{
-            ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
-            setup_exec_watch,
-        },
-        network::NetworkLatencyProbe,
+    builtin::FileAccessProbe,
+    builtin::VfsLatencyProbe,
+    builtin::llm::{
+        ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
+        setup_exec_watch,
     },
     request_shutdown, shutdown_flag,
 };
@@ -105,32 +102,58 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
+        // VFS Latency Probe
         if self
             .settings
             .builtin_probes
-            .network_latency
+            .filesystem
+            .vfs_latency
             .unwrap_or(false)
         {
-            NetworkLatencyProbe.attach(&mut self.bpf)?;
-            // Note: network_latency probe currently logs connection events only,
-            // latency measurement not yet implemented
+            let threshold_ms = self
+                .settings
+                .builtin_probes
+                .filesystem
+                .vfs_latency_threshold_ms
+                .unwrap_or(10);
+
+            info!(
+                "VfsLatencyProbe is ENABLED (threshold={}ms), attaching...",
+                threshold_ms
+            );
+            let probe = VfsLatencyProbe::new(threshold_ms);
+            probe.attach(&mut self.bpf)?;
         }
 
-        if self.settings.builtin_probes.block_io.unwrap_or(false) {
-            BlockIoProbe.attach(&mut self.bpf)?;
-            telemetry::record_active_probe("block_io", 1);
-        }
+        // File Access Probe
+        if self
+            .settings
+            .builtin_probes
+            .filesystem
+            .file_access
+            .unwrap_or(false)
+        {
+            let watched_paths = self
+                .settings
+                .builtin_probes
+                .filesystem
+                .watched_paths
+                .clone()
+                .unwrap_or_default();
 
-        if self.settings.builtin_probes.gpu_usage.unwrap_or(false) {
-            GpuUsageProbe.attach(&mut self.bpf)?;
-            telemetry::record_active_probe("gpu_usage", 1);
+            if watched_paths.is_empty() {
+                info!("FileAccessProbe is ENABLED but no watched_paths configured, skipping...");
+            } else {
+                info!("FileAccessProbe is ENABLED, attaching...");
+                let probe = FileAccessProbe::new(watched_paths);
+                probe.attach(&mut self.bpf)?;
+            }
         }
 
         if self.settings.builtin_probes.llm.unwrap_or(false) {
             LlmProbe.attach(&mut self.bpf)?;
             telemetry::record_active_probe("llm", 1);
         }
-
         Ok(())
     }
 }
