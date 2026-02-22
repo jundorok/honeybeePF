@@ -4,7 +4,7 @@ fullnameOverride: ""
 image:
   repository: "docker.io/dorokrok/honeybeepf"
   tag: "pr-48"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 imagePullSecrets: [] 
 podAnnotations: {}
 
