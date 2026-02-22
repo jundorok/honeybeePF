@@ -15,6 +15,15 @@ pub struct FileAccessProbe {
     running: Arc<AtomicBool>,
 }
 
+impl FileAccessProbe {
+    pub fn new(watched_paths: Vec<String>) -> Self {
+        Self {
+            watched_paths,
+            running: Arc::new(AtomicBool::new(true)),
+        }
+    }
+}
+
 impl Default for FileAccessProbe {
     fn default() -> Self {
         Self {

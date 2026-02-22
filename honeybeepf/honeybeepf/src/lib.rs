@@ -120,10 +120,7 @@ impl HoneyBeeEngine {
                 info!("FileAccessProbe is ENABLED but no watched_paths configured, skipping...");
             } else {
                 info!("FileAccessProbe is ENABLED, attaching...");
-                let probe = FileAccessProbe {
-                    watched_paths,
-                    ..Default::default()
-                };
+                let probe = FileAccessProbe::new(watched_paths);
                 probe.attach(&mut self.bpf)?;
             }
         }
