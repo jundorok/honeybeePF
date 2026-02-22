@@ -38,9 +38,12 @@ builtinProbes:
     file_access:
       enabled: true
       watched_paths:
-        - /.ssh/authorized_keys
-        - /.ssh/authorized_hosts
-        - /root/.ssh/
+        # Suffix patterns (match any user) - prefix with *
+        - "*.ssh/authorized_keys"
+        - "*.ssh/id_rsa"
+        - "*.ssh/id_ed25519"
+        - "*.aws/credentials"
+        - "/var/run/secrets/kubernetes.io/serviceaccount/token" 
 
   scheduler:
     runqueue:

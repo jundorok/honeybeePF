@@ -106,6 +106,8 @@ unsafe impl aya::Pod for ExecEvent {}
 
 pub const MAX_FILENAME_LEN: usize = 256;
 pub const MAX_COMM_LEN: usize = 16;
+/// Maximum length of suffix patterns for wildcard matching (e.g., ".ssh/authorized_keys")
+pub const MAX_SUFFIX_LEN: usize = 64;
 
 /// File access event emitted on sys_enter_openat tracepoint
 #[repr(C)]
