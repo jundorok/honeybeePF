@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use aya::Ebpf;
-use aya::maps::RingBuf;
+use aya::maps::{HashMap, RingBuf};
 use aya::programs::TracePoint;
 use honeybeepf_common::FileAccessEvent;
 use log::info;
@@ -31,6 +31,9 @@ impl Default for FileAccessProbe {
 
 impl Probe for FileAccessProbe {
     fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
+        // Populate watched paths map BEFORE loading the program
+        self.populate_watched_paths(bpf)?;
+
         let program: &mut TracePoint = bpf
             .program_mut("sys_enter_openat")
             .context("Failed to find sys_enter_openat program")?
@@ -44,6 +47,9 @@ impl Probe for FileAccessProbe {
 
         info!("Attached tracepoint: syscalls/sys_enter_openat");
         info!("Watching {} sensitive paths", self.watched_paths.len());
+        for path in &self.watched_paths {
+            info!("  - {}", path);
+        }
 
         self.spawn_event_handler(bpf)?;
 
@@ -55,6 +61,22 @@ impl Probe for FileAccessProbe {
 }
 
 impl FileAccessProbe {
+    /// Populate the WATCHED_PATHS eBPF map with hashes of watched paths.
+    fn populate_watched_paths(&self, bpf: &mut Ebpf) -> Result<()> {
+        let mut watched_map: HashMap<_, u64, u8> = bpf
+            .map_mut("WATCHED_PATHS")
+            .context("Failed to find WATCHED_PATHS map")?
+            .try_into()
+            .context("WATCHED_PATHS is not a HashMap")?;
+
+        for path in &self.watched_paths {
+            let hash = simple_hash(path.as_bytes());
+            watched_map.insert(hash, 1, 0)?;
+            info!("Added watched path: {} (hash: {:#x})", path, hash);
+        }
+
+        Ok(())
+    }
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
             bpf.take_map("FILE_ACCESS_EVENTS")
@@ -102,6 +124,19 @@ impl FileAccessProbe {
 
         Ok(())
     }
+}
+
+/// FNV-1a hash - must match the eBPF implementation exactly
+fn simple_hash(data: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf29ce484222325; // FNV offset basis
+    for &b in data {
+        if b == 0 {
+            break;
+        }
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x100000001b3); // FNV prime
+    }
+    hash
 }
 
 fn format_open_flags(flags: u32) -> String {
