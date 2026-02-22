@@ -38,15 +38,20 @@ impl Probe for VfsLatencyProbe {
         // Set threshold in eBPF map
         self.set_threshold(bpf)?;
 
-        // Attach to vfs_write only (vfs_read excluded - too much noise from sockets/pipes)
+        // Attach to vfs_write (always)
         attach_kprobe_pair(bpf, "vfs_write_entry", "vfs_write_exit", "vfs_write")?;
         info!("Attached kprobe pair: vfs_write");
+
+        // Attach to vfs_read (with smart filtering in eBPF)
+        // eBPF filters: regular files only + (large read OR slow read)
+        attach_kprobe_pair(bpf, "vfs_read_entry", "vfs_read_exit", "vfs_read")?;
+        info!("Attached kprobe pair: vfs_read (filtered: regular files, large/slow only)");
 
         self.spawn_event_handler(bpf)?;
 
         telemetry::record_active_probe("vfs_latency", 1);
         info!(
-            "VfsLatencyProbe attached (threshold={}ms, write-only)",
+            "VfsLatencyProbe attached (threshold={}ms, read+write)",
             self.threshold_ns / 1_000_000
         );
 
@@ -99,14 +104,18 @@ impl VfsLatencyProbe {
                             VfsOpType::Write => "WRITE",
                         };
 
+                        // Categorize file type
+                        let category = categorize_file(filename);
+
                         info!(
-                            "VFS_{} pid={} comm={} file={} bytes={} latency={} cgroup={}",
+                            "VFS_{} pid={} comm={} file={} bytes={} latency={} category={} cgroup={}",
                             op,
                             event.metadata.pid,
                             comm,
                             filename,
-                            event.bytes,
+                            format_bytes(event.bytes),
                             format_duration(event.latency_ns),
+                            category,
                             event.metadata.cgroup_id,
                         );
 
@@ -124,6 +133,51 @@ impl VfsLatencyProbe {
         });
 
         Ok(())
+    }
+}
+
+/// Categorize file by extension for model/dataset identification
+fn categorize_file(filename: &str) -> &'static str {
+    let lower = filename.to_lowercase();
+    
+    // Model files
+    if lower.ends_with(".safetensors")
+        || lower.ends_with(".gguf")
+        || lower.ends_with(".ggml")
+        || lower.ends_with(".pt")
+        || lower.ends_with(".pth")
+        || lower.ends_with(".bin") && (lower.contains("model") || lower.contains("pytorch"))
+    {
+        return "model";
+    }
+    
+    // Dataset files
+    if lower.ends_with(".parquet")
+        || lower.ends_with(".arrow")
+        || lower.ends_with(".csv")
+        || lower.ends_with(".jsonl")
+    {
+        return "dataset";
+    }
+    
+    // Checkpoint files
+    if lower.contains("checkpoint") || lower.contains("ckpt") {
+        return "checkpoint";
+    }
+    
+    "other"
+}
+
+/// Format bytes to human readable
+fn format_bytes(bytes: u64) -> String {
+    if bytes >= 1024 * 1024 * 1024 {
+        format!("{:.2}GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+    } else if bytes >= 1024 * 1024 {
+        format!("{:.2}MB", bytes as f64 / (1024.0 * 1024.0))
+    } else if bytes >= 1024 {
+        format!("{:.2}KB", bytes as f64 / 1024.0)
+    } else {
+        format!("{}B", bytes)
     }
 }
 
