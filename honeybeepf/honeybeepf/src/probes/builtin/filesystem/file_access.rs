@@ -65,37 +65,18 @@ impl Probe for FileAccessProbe {
 }
 
 impl FileAccessProbe {
-    /// Populate the WATCHED_PATHS and WATCHED_SUFFIXES eBPF maps.
-    /// Paths starting with '*' are treated as suffix patterns.
+    /// Populate the WATCHED_PATHS eBPF map with exact path hashes.
     fn populate_watched_paths(&self, bpf: &mut Ebpf) -> Result<()> {
-        let mut exact_map: HashMap<_, u64, u8> = bpf
+        let mut watched_map: HashMap<_, u64, u8> = bpf
             .map_mut("WATCHED_PATHS")
             .context("Failed to find WATCHED_PATHS map")?
             .try_into()
             .context("WATCHED_PATHS is not a HashMap")?;
 
-        let mut suffix_map: HashMap<_, u64, u32> = bpf
-            .map_mut("WATCHED_SUFFIXES")
-            .context("Failed to find WATCHED_SUFFIXES map")?
-            .try_into()
-            .context("WATCHED_SUFFIXES is not a HashMap")?;
-
         for path in &self.watched_paths {
-            if let Some(suffix) = path.strip_prefix('*') {
-                // Suffix pattern: *.ssh/authorized_keys -> matches any path ending with .ssh/authorized_keys
-                let suffix_len = suffix.len() as u32;
-                let hash = simple_hash(suffix.as_bytes());
-                suffix_map.insert(hash, suffix_len, 0)?;
-                info!(
-                    "Added watched suffix: *{} (hash: {:#x}, len: {})",
-                    suffix, hash, suffix_len
-                );
-            } else {
-                // Exact path match
-                let hash = simple_hash(path.as_bytes());
-                exact_map.insert(hash, 1, 0)?;
-                info!("Added watched path: {} (hash: {:#x})", path, hash);
-            }
+            let hash = simple_hash(path.as_bytes());
+            watched_map.insert(hash, 1, 0)?;
+            info!("Added watched path: {} (hash: {:#x})", path, hash);
         }
 
         Ok(())
