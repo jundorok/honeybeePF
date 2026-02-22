@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
 use aya::Ebpf;
-use aya::maps::RingBuf;
+use aya::maps::{HashMap, RingBuf};
 use aya::programs::KProbe;
+use honeybeepf_common::{VfsLatencyEvent, VfsOpType};
 use log::info;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,53 +10,24 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use crate::probes::Probe;
 use crate::telemetry;
 
-/// VFS operation types
-#[repr(u8)]
-#[derive(Debug, Clone, Copy)]
-pub enum VfsOpType {
-    Read = 0,
-    Write = 1,
-    Open = 2,
-    Fsync = 3,
-}
-
-impl From<u8> for VfsOpType {
-    fn from(v: u8) -> Self {
-        match v {
-            0 => VfsOpType::Read,
-            1 => VfsOpType::Write,
-            2 => VfsOpType::Open,
-            3 => VfsOpType::Fsync,
-            _ => VfsOpType::Read,
-        }
-    }
-}
-
-/// VFS latency event
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct VfsLatencyEvent {
-    pub pid: u32,
-    pub tid: u32,
-    pub op_type: u8,
-    pub latency_ns: u64,
-    pub bytes: u64,
-    pub ino: u64,
-    pub dev: u32,
-    pub cgroup_id: u64,
-    pub comm: [u8; 16],
-    pub filename: [u8; 256],
-}
-
 pub struct VfsLatencyProbe {
     pub threshold_ns: u64,
     running: Arc<AtomicBool>,
 }
 
+impl VfsLatencyProbe {
+    pub fn new(threshold_ms: u32) -> Self {
+        Self {
+            threshold_ns: (threshold_ms as u64) * 1_000_000,
+            running: Arc::new(AtomicBool::new(true)),
+        }
+    }
+}
+
 impl Default for VfsLatencyProbe {
     fn default() -> Self {
         Self {
-            threshold_ns: 1_000_000, // 1ms default
+            threshold_ns: 10_000_000, // 10ms default
             running: Arc::new(AtomicBool::new(true)),
         }
     }
@@ -63,6 +35,9 @@ impl Default for VfsLatencyProbe {
 
 impl Probe for VfsLatencyProbe {
     fn attach(&self, bpf: &mut Ebpf) -> Result<()> {
+        // Set threshold in eBPF map
+        self.set_threshold(bpf)?;
+
         // Attach to vfs_read
         attach_kprobe_pair(bpf, "vfs_read_entry", "vfs_read_exit", "vfs_read")?;
         info!("Attached kprobe pair: vfs_read");
@@ -84,6 +59,19 @@ impl Probe for VfsLatencyProbe {
 }
 
 impl VfsLatencyProbe {
+    fn set_threshold(&self, bpf: &mut Ebpf) -> Result<()> {
+        let mut threshold_map: HashMap<_, u32, u64> = bpf
+            .map_mut("VFS_THRESHOLD_NS")
+            .context("Failed to find VFS_THRESHOLD_NS map")?
+            .try_into()
+            .context("VFS_THRESHOLD_NS is not a HashMap")?;
+
+        threshold_map.insert(0, self.threshold_ns, 0)?;
+        info!("Set VFS latency threshold to {}ns", self.threshold_ns);
+
+        Ok(())
+    }
+
     fn spawn_event_handler(&self, bpf: &mut Ebpf) -> Result<()> {
         let ring_buf = RingBuf::try_from(
             bpf.take_map("VFS_EVENTS")
@@ -113,19 +101,17 @@ impl VfsLatencyProbe {
                         let op = match VfsOpType::from(event.op_type) {
                             VfsOpType::Read => "READ",
                             VfsOpType::Write => "WRITE",
-                            VfsOpType::Open => "OPEN",
-                            VfsOpType::Fsync => "FSYNC",
                         };
 
                         info!(
                             "VFS_{} pid={} comm={} file={} bytes={} latency={} cgroup={}",
                             op,
-                            event.pid,
+                            event.metadata.pid,
                             comm,
                             filename,
                             event.bytes,
                             format_duration(event.latency_ns),
-                            event.cgroup_id,
+                            event.metadata.cgroup_id,
                         );
 
                         telemetry::record_vfs_event(
@@ -133,7 +119,7 @@ impl VfsLatencyProbe {
                             filename,
                             event.bytes,
                             event.latency_ns,
-                            event.cgroup_id,
+                            event.metadata.cgroup_id,
                         );
                     }
                 }

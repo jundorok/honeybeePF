@@ -34,7 +34,7 @@ builtinProbes:
   filesystem:
     vfs_latency:
       enabled: true
-      threshold_ms: 10
+      threshold_ms: 1000
     file_access:
       enabled: true
       watched_paths:
@@ -45,9 +45,9 @@ builtinProbes:
         - "/home/ubuntu/.ssh/authorized_keys"
         - "/home/ubuntu/.ssh/id_rsa"
         - "/home/ubuntu/.ssh/id_ed25519"
-        - "/home/admin/.ssh/authorized_keys"
-        - "/home/admin/.ssh/id_rsa"
-        - "/home/admin/.ssh/id_ed25519"
+        - "/home/root/.ssh/authorized_keys"
+        - "/home/root/.ssh/id_rsa"
+        - "/home/root/.ssh/id_ed25519"
 
   scheduler:
     runqueue:

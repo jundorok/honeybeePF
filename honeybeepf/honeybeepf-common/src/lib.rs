@@ -142,3 +142,59 @@ impl Default for FileAccessEvent {
 
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for FileAccessEvent {}
+
+// ============================================================
+// VFS Latency Events
+// ============================================================
+
+/// VFS operation types
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VfsOpType {
+    Read = 0,
+    Write = 1,
+}
+
+impl From<u8> for VfsOpType {
+    fn from(v: u8) -> Self {
+        match v {
+            0 => Self::Read,
+            1 => Self::Write,
+            _ => Self::Read,
+        }
+    }
+}
+
+/// VFS latency event emitted when file operations exceed threshold
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct VfsLatencyEvent {
+    pub metadata: EventMetadata,
+    pub tid: u32,
+    pub op_type: u8,
+    pub _pad: [u8; 3],
+    pub latency_ns: u64,
+    pub bytes: u64,
+    pub offset: u64,
+    pub comm: [u8; MAX_COMM_LEN],
+    pub filename: [u8; MAX_FILENAME_LEN],
+}
+
+impl Default for VfsLatencyEvent {
+    fn default() -> Self {
+        Self {
+            metadata: EventMetadata::default(),
+            tid: 0,
+            op_type: 0,
+            _pad: [0u8; 3],
+            latency_ns: 0,
+            bytes: 0,
+            offset: 0,
+            comm: [0u8; MAX_COMM_LEN],
+            filename: [0u8; MAX_FILENAME_LEN],
+        }
+    }
+}
+
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for VfsLatencyEvent {}

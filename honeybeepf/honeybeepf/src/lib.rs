@@ -15,6 +15,7 @@ pub mod probes;
 use crate::probes::{
     Probe,
     builtin::FileAccessProbe,
+    builtin::VfsLatencyProbe,
     builtin::llm::{
         ExecNotify, ExecPidQueue, LlmProbe, attach_new_targets_for_pids, discovery,
         setup_exec_watch,
@@ -101,6 +102,30 @@ impl HoneyBeeEngine {
     }
 
     fn attach_probes(&mut self) -> Result<()> {
+        // VFS Latency Probe
+        if self
+            .settings
+            .builtin_probes
+            .filesystem
+            .vfs_latency
+            .unwrap_or(false)
+        {
+            let threshold_ms = self
+                .settings
+                .builtin_probes
+                .filesystem
+                .vfs_latency_threshold_ms
+                .unwrap_or(10);
+
+            info!(
+                "VfsLatencyProbe is ENABLED (threshold={}ms), attaching...",
+                threshold_ms
+            );
+            let probe = VfsLatencyProbe::new(threshold_ms);
+            probe.attach(&mut self.bpf)?;
+        }
+
+        // File Access Probe
         if self
             .settings
             .builtin_probes
