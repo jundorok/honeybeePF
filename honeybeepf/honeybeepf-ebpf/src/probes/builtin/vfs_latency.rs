@@ -1,7 +1,7 @@
 //! VFS latency kprobes for monitoring slow/large file system operations.
 //!
 //! Attaches to vfs_read and vfs_write to measure I/O latency.
-//! 
+//!
 //! For vfs_read, events are emitted only when:
 //! - It's a regular file (not socket/pipe)
 //! - AND (bytes >= MIN_BYTES OR latency >= threshold)
@@ -283,24 +283,22 @@ fn is_regular_file(file_ptr: u64) -> bool {
     const I_MODE_OFFSET: usize = 0;
 
     // Read inode pointer: file->f_inode
-    let inode_ptr: u64 = match unsafe {
-        bpf_probe_read_kernel((file_ptr + F_INODE_OFFSET as u64) as *const u64)
-    } {
-        Ok(ptr) => ptr,
-        Err(_) => return false,
-    };
+    let inode_ptr: u64 =
+        match unsafe { bpf_probe_read_kernel((file_ptr + F_INODE_OFFSET as u64) as *const u64) } {
+            Ok(ptr) => ptr,
+            Err(_) => return false,
+        };
 
     if inode_ptr == 0 {
         return false;
     }
 
     // Read i_mode: inode->i_mode
-    let i_mode: u16 = match unsafe {
-        bpf_probe_read_kernel((inode_ptr + I_MODE_OFFSET as u64) as *const u16)
-    } {
-        Ok(mode) => mode,
-        Err(_) => return false,
-    };
+    let i_mode: u16 =
+        match unsafe { bpf_probe_read_kernel((inode_ptr + I_MODE_OFFSET as u64) as *const u16) } {
+            Ok(mode) => mode,
+            Err(_) => return false,
+        };
 
     // Check if it's a regular file: (i_mode & S_IFMT) == S_IFREG
     (i_mode & S_IFMT) == S_IFREG

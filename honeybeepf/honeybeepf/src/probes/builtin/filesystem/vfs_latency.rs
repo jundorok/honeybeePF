@@ -139,7 +139,7 @@ impl VfsLatencyProbe {
 /// Categorize file by extension for model/dataset identification
 fn categorize_file(filename: &str) -> &'static str {
     let lower = filename.to_lowercase();
-    
+
     // Model files
     if lower.ends_with(".safetensors")
         || lower.ends_with(".gguf")
@@ -150,7 +150,7 @@ fn categorize_file(filename: &str) -> &'static str {
     {
         return "model";
     }
-    
+
     // Dataset files
     if lower.ends_with(".parquet")
         || lower.ends_with(".arrow")
@@ -159,12 +159,12 @@ fn categorize_file(filename: &str) -> &'static str {
     {
         return "dataset";
     }
-    
+
     // Checkpoint files
     if lower.contains("checkpoint") || lower.contains("ckpt") {
         return "checkpoint";
     }
-    
+
     "other"
 }
 
