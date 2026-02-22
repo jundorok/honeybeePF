@@ -1,7 +1,8 @@
 //! VFS latency kprobes for monitoring slow file system operations.
 //!
-//! Attaches to vfs_read and vfs_write to measure I/O latency.
+//! Attaches to vfs_write to measure I/O latency.
 //! Events are emitted when latency exceeds the configured threshold.
+//! Note: vfs_read is excluded as it often captures socket/pipe blocking, not disk I/O.
 
 use aya_ebpf::{
     helpers::{
@@ -20,7 +21,6 @@ const MAX_ENTRIES: u32 = 10240;
 const DEFAULT_THRESHOLD_NS: u64 = 10_000_000;
 
 /// VFS operation type constants
-const VFS_OP_READ: u8 = 0;
 const VFS_OP_WRITE: u8 = 1;
 
 #[map]
@@ -36,30 +36,7 @@ static VFS_START: HashMap<u32, (u64, u8, u64)> = HashMap::with_max_entries(MAX_E
 pub static VFS_THRESHOLD_NS: HashMap<u32, u64> = HashMap::with_max_entries(1, 0);
 
 // ============================================================
-// vfs_read probes
-// ============================================================
-
-/// Entry probe for vfs_read
-/// ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
-#[kprobe]
-pub fn vfs_read_entry(ctx: ProbeContext) -> u32 {
-    match try_vfs_entry(&ctx, VFS_OP_READ) {
-        Ok(ret) => ret,
-        Err(_) => 0,
-    }
-}
-
-/// Exit probe for vfs_read
-#[kretprobe]
-pub fn vfs_read_exit(ctx: RetProbeContext) -> u32 {
-    match try_vfs_exit(&ctx, VFS_OP_READ) {
-        Ok(ret) => ret,
-        Err(_) => 0,
-    }
-}
-
-// ============================================================
-// vfs_write probes
+// vfs_write probes (READ excluded - too much noise from sockets/pipes)
 // ============================================================
 
 /// Entry probe for vfs_write

@@ -38,11 +38,7 @@ impl Probe for VfsLatencyProbe {
         // Set threshold in eBPF map
         self.set_threshold(bpf)?;
 
-        // Attach to vfs_read
-        attach_kprobe_pair(bpf, "vfs_read_entry", "vfs_read_exit", "vfs_read")?;
-        info!("Attached kprobe pair: vfs_read");
-
-        // Attach to vfs_write
+        // Attach to vfs_write only (vfs_read excluded - too much noise from sockets/pipes)
         attach_kprobe_pair(bpf, "vfs_write_entry", "vfs_write_exit", "vfs_write")?;
         info!("Attached kprobe pair: vfs_write");
 
@@ -50,7 +46,7 @@ impl Probe for VfsLatencyProbe {
 
         telemetry::record_active_probe("vfs_latency", 1);
         info!(
-            "VfsLatencyProbe attached (threshold={}ms)",
+            "VfsLatencyProbe attached (threshold={}ms, write-only)",
             self.threshold_ns / 1_000_000
         );
 
