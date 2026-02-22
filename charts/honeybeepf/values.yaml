@@ -38,10 +38,9 @@ builtinProbes:
     file_access:
       enabled: true
       watched_paths:
-        - /etc/passwd
-        - /etc/shadow
-        - /etc/sudoers
-        - /root/.ssh
+        - /.ssh/authorized_keys
+        - /.ssh/authorized_hosts
+        - /root/.ssh/
 
   scheduler:
     runqueue:

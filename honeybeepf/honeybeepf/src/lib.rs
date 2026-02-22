@@ -108,18 +108,24 @@ impl HoneyBeeEngine {
             .file_access
             .unwrap_or(false)
         {
-            info!("FileAccessProbe is ENABLED, attaching...");
-            let mut probe = FileAccessProbe::default();
-            if let Some(paths) = self
+            let watched_paths = self
                 .settings
                 .builtin_probes
                 .filesystem
                 .watched_paths
                 .clone()
-            {
-                probe.watched_paths = paths;
+                .unwrap_or_default();
+
+            if watched_paths.is_empty() {
+                info!("FileAccessProbe is ENABLED but no watched_paths configured, skipping...");
+            } else {
+                info!("FileAccessProbe is ENABLED, attaching...");
+                let probe = FileAccessProbe {
+                    watched_paths,
+                    ..Default::default()
+                };
+                probe.attach(&mut self.bpf)?;
             }
-            probe.attach(&mut self.bpf)?;
         }
 
         if self.settings.builtin_probes.llm.unwrap_or(false) {

@@ -18,13 +18,8 @@ pub struct FileAccessProbe {
 impl Default for FileAccessProbe {
     fn default() -> Self {
         Self {
-            watched_paths: vec![
-                "/etc/passwd".into(),
-                "/etc/shadow".into(),
-                "/etc/sudoers".into(),
-                "/root/.ssh".into(),
-            ],
-            running: Arc::new(AtomicBool::new(true)),
+            watched_paths: Vec::new(),
+            running: Arc::new(AtomicBool::new(true)), // must be true for event loop
         }
     }
 }
