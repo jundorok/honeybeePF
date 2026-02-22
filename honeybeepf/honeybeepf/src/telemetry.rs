@@ -4,7 +4,6 @@
 //!
 //! ## Metrics Categories
 //! - **Filesystem**: VFS latency, file access auditing
-//! - **Scheduler**: Runqueue latency, off-CPU analysis
 //!
 //! ## OTLP Endpoint Priority
 //! 1. Helm values (injected via environment variables)
@@ -44,11 +43,6 @@ pub struct HoneyBeeMetrics {
     pub vfs_write_events: Counter<u64>,
     pub vfs_latency_ns: Histogram<u64>,
     pub file_access_events: Counter<u64>,
-
-    // === Scheduler metrics ===
-    pub runqueue_latency_ns: Histogram<u64>,
-    pub offcpu_duration_ns: Histogram<u64>,
-    pub context_switch_events: Counter<u64>,
 }
 
 impl HoneyBeeMetrics {
@@ -73,23 +67,6 @@ impl HoneyBeeMetrics {
             file_access_events: meter
                 .u64_counter("file_access_events")
                 .with_description("Number of monitored file access events")
-                .with_unit("events")
-                .build(),
-
-            // === Scheduler ===
-            runqueue_latency_ns: meter
-                .u64_histogram("runqueue_latency_ns")
-                .with_description("Time spent waiting in run queue")
-                .with_unit("ns")
-                .build(),
-            offcpu_duration_ns: meter
-                .u64_histogram("offcpu_duration_ns")
-                .with_description("Time spent off-CPU (blocked)")
-                .with_unit("ns")
-                .build(),
-            context_switch_events: meter
-                .u64_counter("context_switch_events")
-                .with_description("Number of context switches")
                 .with_unit("events")
                 .build(),
         }
@@ -222,31 +199,6 @@ pub fn record_file_access_event(filename: &str, flags: &str, comm: &str, cgroup_
             KeyValue::new("cgroup_id", cgroup_id as i64),
         ];
         m.file_access_events.add(1, &attrs);
-    }
-}
-
-// === Scheduler metric helpers ===
-
-pub fn record_runqueue_latency(latency_ns: u64, cpu: u32, comm: &str, cgroup_id: u64) {
-    if let Some(m) = metrics() {
-        let attrs = [
-            KeyValue::new("cpu", cpu as i64),
-            KeyValue::new("process", comm.to_string()),
-            KeyValue::new("cgroup_id", cgroup_id as i64),
-        ];
-        m.runqueue_latency_ns.record(latency_ns, &attrs);
-    }
-}
-
-pub fn record_offcpu_event(duration_ns: u64, reason: &str, comm: &str, cgroup_id: u64) {
-    if let Some(m) = metrics() {
-        let attrs = [
-            KeyValue::new("reason", reason.to_string()),
-            KeyValue::new("process", comm.to_string()),
-            KeyValue::new("cgroup_id", cgroup_id as i64),
-        ];
-        m.offcpu_duration_ns.record(duration_ns, &attrs);
-        m.context_switch_events.add(1, &attrs);
     }
 }
 

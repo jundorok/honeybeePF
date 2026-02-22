@@ -41,14 +41,6 @@ builtinProbes:
         - "/home/root/.ssh/id_rsa"
         - "/home/root/.ssh/id_ed25519"
 
-  scheduler:
-    runqueue:
-      enabled: false
-      threshold_ms: 10
-    offcpu:
-      enabled: false
-      threshold_ms: 1
-
   llm:
     enabled: false
     providers: []

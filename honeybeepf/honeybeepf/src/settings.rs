@@ -13,23 +13,11 @@ pub struct FilesystemProbes {
     pub watched_paths: Option<Vec<String>>,
 }
 
-/// Scheduler probe configuration
-#[derive(Debug, Deserialize, Clone, Default)]
-#[allow(unused)]
-pub struct SchedulerProbes {
-    pub runqueue: Option<bool>,
-    pub runqueue_threshold_ms: Option<u32>,
-    pub offcpu: Option<bool>,
-    pub offcpu_threshold_ms: Option<u32>,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 #[allow(unused)]
 pub struct BuiltinProbes {
     #[serde(default)]
     pub filesystem: FilesystemProbes,
-    #[serde(default)]
-    pub scheduler: SchedulerProbes,
     pub llm: Option<bool>,
     pub interval: Option<u32>,
 }
@@ -73,10 +61,6 @@ impl Settings {
         // Filesystem probes
         let _probe_vfs_latency = self.builtin_probes.filesystem.vfs_latency.unwrap_or(false);
         let _probe_file_access = self.builtin_probes.filesystem.file_access.unwrap_or(false);
-
-        // Scheduler probes
-        let _probe_runqueue = self.builtin_probes.scheduler.runqueue.unwrap_or(false);
-        let _probe_offcpu = self.builtin_probes.scheduler.offcpu.unwrap_or(false);
 
         // LLM probe
         let probe_llm = self.builtin_probes.llm.unwrap_or(false);
@@ -134,12 +118,6 @@ mod tests {
                     vfs_latency_threshold_ms: Some(10),
                     file_access: None,
                     watched_paths: None,
-                },
-                scheduler: SchedulerProbes {
-                    runqueue: None,
-                    runqueue_threshold_ms: None,
-                    offcpu: Some(true),
-                    offcpu_threshold_ms: Some(5),
                 },
                 llm: None,
                 interval: None,

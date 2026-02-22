@@ -27,16 +27,6 @@ data:
   BUILTIN_PROBES__FILESYSTEM__WATCHED_PATHS: {{ .Values.builtinProbes.filesystem.file_access.watched_paths | join "," | quote }}
   {{- end }}
 
-  # === Scheduler Probes ===
-  BUILTIN_PROBES__SCHEDULER__RUNQUEUE: {{ .Values.builtinProbes.scheduler.runqueue.enabled | quote }}
-  {{- if .Values.builtinProbes.scheduler.runqueue.threshold_ms }}
-  BUILTIN_PROBES__SCHEDULER__RUNQUEUE_THRESHOLD_MS: {{ .Values.builtinProbes.scheduler.runqueue.threshold_ms | quote }}
-  {{- end }}
-  BUILTIN_PROBES__SCHEDULER__OFFCPU: {{ .Values.builtinProbes.scheduler.offcpu.enabled | quote }}
-  {{- if .Values.builtinProbes.scheduler.offcpu.threshold_ms }}
-  BUILTIN_PROBES__SCHEDULER__OFFCPU_THRESHOLD_MS: {{ .Values.builtinProbes.scheduler.offcpu.threshold_ms | quote }}
-  {{- end }}
-
   # === LLM Probes ===
   BUILTIN_PROBES__LLM: {{ .Values.builtinProbes.llm.enabled | quote }}
   {{- if .Values.builtinProbes.llm.providers }}
